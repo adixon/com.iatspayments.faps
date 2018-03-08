@@ -10,7 +10,7 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
    * @var object
    * @static
    */
-  static protected $_mode = null;
+  protected $_mode = null;
 
   /**
    * Constructor
@@ -51,7 +51,14 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
   }
 
   function doDirectPayment(&$params) {
-    CRM_Core_Error::fatal(ts('This function is not implemented'));
+    // CRM_Core_Error::fatal(ts('This function is not implemented'));
+    require 'vendor/1stpaygateway/rest-gateway-php/gateway.php'
+    $sale_demo = new RestGateway();
+    $credentials = array(
+     'merchantKey' => $this->_paymentProcessor['signature'],
+     'processorId' => $this->_paymentProcessor['user_name']
+    );
+    
   }
 
   /**
