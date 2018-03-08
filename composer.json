@@ -1,0 +1,11 @@
+{
+    "repositories": [
+        {
+            "url": "https://github.com/adixon/rest-gateway-php.git",
+            "type": "vcs"
+        }
+    ],
+    "require": {
+        "1stpaygateway/rest-gateway-php": "dev-master"
+    }
+}
