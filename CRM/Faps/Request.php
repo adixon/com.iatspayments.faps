@@ -59,8 +59,8 @@ class Faps_Request {
   }
 
   public function request($credentials, $request_params) {
-    CRM_Core_Error::debug_var('Request Params', $request_params);
-    CRM_Core_Error::debug_var('Request URL', $this->apiRequest);
+    // CRM_Core_Error::debug_var('Request Params', $request_params);
+    // CRM_Core_Error::debug_var('Request URL', $this->apiRequest);
     $data = array_merge($credentials, $request_params);
     try {
       if ($data == NULL) {
@@ -70,6 +70,7 @@ class Faps_Request {
       $this->result = array();
       $jsondata = json_encode(new Faps_Transaction($data), JSON_PRETTY_PRINT);
       $jsondata = utf8_encode($jsondata);
+      // CRM_Core_Error::debug_var('jsondata', $jsondata);
       $curl_handle = curl_init();
       curl_setopt($curl_handle, CURLOPT_URL, $url);
       curl_setopt($curl_handle, CURLOPT_CUSTOMREQUEST, "POST");
@@ -103,13 +104,13 @@ class Faps_Request {
         );
       }
       else {
-        CRM_Core_Error::debug_var('Response', $this->response);
+        // CRM_Core_Error::debug_var('Response', $this->response);
         $this->result = json_decode($this->response, TRUE);
         /* if (empty($this->result['isSuccess'])) {
           $this->result['errorMessages'] = $this->result['data']['authResponse'];
         } */
       }
-      CRM_Core_Error::debug_var('Result', $this->result);
+      // CRM_Core_Error::debug_var('Result', $this->result);
       return $this->result;
     }
     catch (Exception $e){
