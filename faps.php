@@ -161,3 +161,115 @@ function faps_civicrm_navigationMenu(&$menu) {
   ));
   _faps_civix_navigationMenu($menu);
 } // */
+
+/**
+ * Internal utility function: return the id's of any FAPS processors matching various conditions.
+ *
+ * Processors: an array of payment processors indexed by id to filter by,
+ *             or if NULL, it searches through all
+ * subtype: the FAPS service class name subtype
+ * params: an array of additional params to pass to the api call.
+ */
+function faps_civicrm_processors($processors, $subtype = '', $params = array()) {
+  $list = array();
+  $match_all = ('*' == $subtype) ? TRUE : FALSE;
+  if (!$match_all) {
+    $params['class_name'] = 'Payment_Faps' . $subtype;
+  }
+
+  // Set the domain id if not passed in.
+  if (!array_key_exists('domain_id', $params)) {
+    $params['domain_id']    = CRM_Core_Config::domainID();
+  }
+
+  $result = civicrm_api3('PaymentProcessor', 'get', $params);
+  if (0 == $result['is_error'] && count($result['values']) > 0) {
+    foreach ($result['values'] as $paymentProcessor) {
+      $id = $paymentProcessor['id'];
+      if ((is_null($processors)) || !empty($processors[$id])) {
+        if (!$match_all || (0 === strpos($paymentProcessor['class_name'], 'Payment_Faps'))) {
+          $list[$id] = $paymentProcessor;
+        }
+      }
+    }
+  }
+  return $list;
+}
+
+/**
+ * Hook_civicrm_buildForm.
+ * Do a Drupal 7 style thing so we can write smaller functions.
+ */
+function faps_civicrm_buildForm($formName, &$form) {
+  // But start by grouping a few forms together for nicer code.
+  switch ($formName) {
+    case 'CRM_Event_Form_Participant':
+    case 'CRM_Member_Form_Membership':
+    case 'CRM_Contribute_Form_Contribution':
+      // Override normal convention, deal with all these backend credit card contribution forms the same way.
+      $fname = 'faps_civicrm_buildForm_Contribution';
+      break;
+
+    case 'CRM_Contribute_Form_Contribution_Main':
+    case 'CRM_Event_Form_Registration_Register':
+    case 'CRM_Financial_Form_Payment':
+      // Override normal convention, deal with all these front-end contribution forms the same way.
+      $fname = 'faps_civicrm_buildForm_Contribution';
+      break;
+    default:
+      $fname = 'faps_civicrm_buildForm_' . $formName;
+      break;
+  }
+  if (function_exists($fname)) {
+    $fname($form);
+  }
+  // Else echo $fname;.
+}
+
+/**
+ * Add the magic sauce to cc and ach forms if I'm using FAPS
+ */
+function faps_civicrm_buildForm_Contribution(&$form) {
+  // Skip if i don't have any processors.
+  //echo '<pre>'; print_r($form); die();
+  if (empty($form->_processors)) {
+   // return;
+  }
+  $form_class = get_class($form);
+  //  die($form_class);
+
+  if ($form_class == 'CRM_Financial_Form_Payment') {
+    // We're on CRM_Financial_Form_Payment, we've got just one payment processor
+    $id = $form->_paymentProcessor['id'];
+    $faps_processors = faps_civicrm_processors(array($id => $form->_paymentProcessor), '*');
+  }
+  else {
+    // Handle the event and contribution page forms
+    if (empty($form->_paymentProcessors)) {
+      if (empty($form->_paymentProcessorIDs)) {
+        return;
+      }
+      else {
+        $form_payment_processors = array_fill_keys($form->_paymentProcessorIDs,1);
+      }
+    }
+    else {
+      $form_payment_processors = $form->_paymentProcessors;
+    }
+    $faps_processors = faps_civicrm_processors($form_payment_processors, '*');
+  }
+  if (empty($faps_processors)) {
+    return;
+  }
+  $cryptojs = 'https://secure.1stpaygateway.net/restgw/cdn/cryptogram.js';
+  // CRM_Core_Resources::singleton()->addScriptUrl($cryptojs);
+  CRM_Core_Region::instance('page-footer')->add(array(
+        'name' => $cryptojs,
+        'type' => 'scriptUrl',
+        'scriptUrl' => $cryptojs,
+        'weight' => 0,
+        'region' => 'page-footer',
+        'data-whatever' => 'blah'
+      ));
+  //CRM_Core_Resources::singleton()->addScriptFile('com.iatspayments.faps', 'js/swipe.js', 10);
+}
