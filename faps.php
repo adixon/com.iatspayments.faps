@@ -261,15 +261,32 @@ function faps_civicrm_buildForm_Contribution(&$form) {
   if (empty($faps_processors)) {
     return;
   }
+  // die('test');
+  $faps_processor = reset($faps_processors);
+  $credentials = array(
+    'transcenterId' => $faps_processor['password'],
+//    'merchantKey' => $faps_processor['signature'],
+    'processorId' => $faps_processor['user_name']
+  );
   $cryptojs = 'https://secure.1stpaygateway.net/restgw/cdn/cryptogram.js';
+  $markup = sprintf("<script type=\"text/javascript\" 
+id=\"checkout-js\" src=\"%s\" 
+data-transcenter=\"%s\"
+data-processor=\"%s\"
+data-styleembed=\"False\"
+xdata-hideframe=\"True\"
+data-type=\"%s\"></script>\n", 
+  $cryptojs, $credentials['transcenterId'], $credentials['processorId'], 'sale');
   // CRM_Core_Resources::singleton()->addScriptUrl($cryptojs);
+  // $markup = print_r($faps_processors, TRUE);
+  CRM_Core_Resources::singleton()->addScriptFile('com.iatspayments.faps', 'js/crypto.js', 10);
+  CRM_Core_Resources::singleton()->addStyleFile('com.iatspayments.faps', 'css/crypto.css', 10);
   CRM_Core_Region::instance('page-footer')->add(array(
         'name' => $cryptojs,
-        'type' => 'scriptUrl',
-        'scriptUrl' => $cryptojs,
-        'weight' => 0,
+        'type' => 'markup',
+        'markup' => $markup,
+//.'<div id="checkout-embed"></div>',
+        'weight' => 11,
         'region' => 'page-footer',
-        'data-whatever' => 'blah'
       ));
-  //CRM_Core_Resources::singleton()->addScriptFile('com.iatspayments.faps', 'js/swipe.js', 10);
 }
