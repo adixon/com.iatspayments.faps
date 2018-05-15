@@ -38,6 +38,9 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
     if (empty($this->_paymentProcessor['user_name'])) {
       $error[] = ts('Processor Id is not set in the Administer CiviCRM &raquo; System Settings &raquo; Payment Processors.');
     }
+    if (empty($this->_paymentProcessor['password'])) {
+      $error[] = ts('Transaction Center Id is not set in the Administer CiviCRM &raquo; System Settings &raquo; Payment Processors.');
+    }
     if (empty($this->_paymentProcessor['signature'])) {
       $error[] = ts('Merchant Key is not set in the Administer CiviCRM &raquo; System Settings &raquo; Payment Processors.');
     }
@@ -49,6 +52,40 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
       return NULL;
     }
     // TODO: check urls vs. what I'm expecting?
+  }
+
+  /**
+   * Get array of fields that should be displayed on the payment form for credit cards.
+   * Use FAPS cryptojs to gather the senstive card information.
+   *
+   * @return array
+   */
+  protected function getCreditCardFormFields() {
+    return array(
+      'placeholder',
+    );
+  }
+
+  /**
+   * Return an array of all the details about the fields potentially required for payment fields.
+   *
+   * Only those determined by getPaymentFormFields will actually be assigned to the form
+   *
+   * @return array
+   *   field metadata
+   */
+  public function getPaymentFormFieldsMetadata() {
+    return array(
+      'placeholder' => array(
+        'htmlType' => 'text',
+        'name' => 'placeholder',
+        'title' => ts('Placeholder'),
+        'attributes' => array(
+     //     'class' => 'hidden'
+        ),
+        'is_required' => FALSE,
+      )
+    );
   }
 
   function doDirectPayment(&$params) {

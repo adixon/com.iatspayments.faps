@@ -17,7 +17,7 @@ return array(
           'name' => 'iATS Payment FAPS Credit Card',
           'description' => 'iATS Payment Credit Card Processor using 1stPay',
           'user_name_label' => 'Processor ID',
-//          'password_label' => 'Merchant Key',
+          'password_label' => 'Transaction Center ID',
           'signature_label' => 'Merchant Key',
           'class_name' => 'Payment_Faps',
           'url_site_default' => 'https://secure.1stpaygateway.net/secure/RestGW/Gateway/Transaction/',
