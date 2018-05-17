@@ -60,10 +60,9 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
    *
    * @return array
    */
+
   protected function getCreditCardFormFields() {
-    return array(
-      'placeholder',
-    );
+    return array('cryptogram');
   }
 
   /**
@@ -73,19 +72,19 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
    *
    * @return array
    *   field metadata
-   */
   public function getPaymentFormFieldsMetadata() {
-    return array(
-      'placeholder' => array(
+    $metadata = parent::getPaymentFormFieldsMetadata();
+    $metadata['cryptogram'] = array(
         'htmlType' => 'text',
-        'name' => 'placeholder',
+        'cc_field' => TRUE,
+        'name' => 'checkout-cryptogram',
         'title' => ts('Placeholder'),
         'attributes' => array(
-     //     'class' => 'hidden'
+          'class' => 'cryptogram',
         ),
         'is_required' => FALSE,
-      )
     );
+    return $metadata;
   }
 
   function doDirectPayment(&$params) {
