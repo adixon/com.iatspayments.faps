@@ -26,7 +26,7 @@ return array(
 //          'url_recur_test_default' => 'https://secure-v.goemerchant.com/secure/RestGW/Gateway/Transaction/',
           'billing_mode' => 1,
           'payment_type' => 1,
-          'is_recur' => 0,
+          'is_recur' => 1,
           'payment_instrument_id' => 1,
           'is_active' => 1,
         ),

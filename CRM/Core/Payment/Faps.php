@@ -58,7 +58,7 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
 
   /**
    * Get array of fields that should be displayed on the payment form for credit cards.
-   * Use FAPS cryptojs to gather the senstive card information.
+   * Use FAPS cryptojs to gather the senstive card information, if enabled.
    *
    * @return array
    */
@@ -122,21 +122,39 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
     // Make the request.
     $result = $faps->request($credentials, $request);
     $success = (!empty($result['isSuccess']));
-    if (!$isRecur) {
-      if ($success) {
-        $params['contribution_status_id'] = 1;
-        // For versions >= 4.6.6, the proper key.
-        $params['payment_status_id'] = 1;
-        $params['trxn_id'] = trim($result['data']['authCode']) . ':' . trim($result['data']['referenceNumber']);
-        $params['gross_amount'] = $params['amount'];
-        return $params;
+    if ($success) {
+      $params['contribution_status_id'] = 1;
+      // For versions >= 4.6.6, the proper key.
+      $params['payment_status_id'] = 1;
+      $params['trxn_id'] = trim($result['data']['authCode']) . ':' . trim($result['data']['referenceNumber']);
+      $params['gross_amount'] = $params['amount'];
+      if ($isRecur) { // store it in the vault
+        // return self::error(ts('Recurring function is not implemented'));
+        $vaultKey = preg_replace("/[^a-z0-9]/", '', strtolower($request['ownerEmail']));
+        $vaultKey .= '!'.md5(uniqid(rand(), TRUE));
+        $options = array('action' => 'VaultCreateCCRecord');
+        $vault = new Faps_Request($options);
+        $create = array(
+          'cardExpMonth' => $request['cardExpMonth'],
+          'cardExpYear' => $request['cardExpYear'],
+          'creditCardToken' => $result['data']['referenceNumber'],
+          'ipAddress' => $request['ipAddress'],
+          'vaultKey' => $vaultKey
+        );
+        $create_result = $vault->request($credentials,$create); 
+        if (!empty($create_result['isSuccess'])) {
+          $update = array('processor_id' => $vaultKey.':'.$create_result['data']['id']);
+          // Setting the next_sched_contribution_date param doesn't do anything, commented out, work around in setRecurReturnParams
+          $params = $this->setRecurReturnParams($params, $update);
+        }
+        else {
+          CRM_Core_Error::debug_var('vault request', $create_result);
+        }
       }
-      else {
-        return self::error($result['errorMessages']);
-      }
-    } 
+      return $params;
+    }
     else {
-      return self::error(ts('Recurring function is not implemented'));
+      return self::error($result);
     }
   }
 
@@ -214,10 +232,21 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
         $this->errorString($error)
       );
     }
-    elseif (is_string($error)) {
+    elseif (is_array($error)) {
+      $error_string = '';
+      if ($error['isError']) {
+        foreach($error['errorMessages'] as $message) {
+          $error_string .= 'Error on '.$message['key'].': '.$message['message'];
+        }
+      }
+      if ($error['validationHasFailed']) {
+        foreach($error['validationFailures'] as $message) {
+          $error_string .= 'Validation failure for '.$message['key'].': '.$message['message'];
+        }
+      }
       $e->push(9002,
         0, NULL,
-        $error
+        $error_string
       );
     }
     else {
@@ -226,4 +255,62 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
     return $e;
   }
 
+  /*
+   * Set the return params for recurring contributions.
+   *
+   * Implemented as a function so I can do some cleanup and implement
+   * the ability to set a future start date for recurring contributions.
+   * This functionality will apply to back-end and front-end,
+   * As enabled when configured via the iATS admin settings.
+   *
+   * This function will alter the recurring schedule as an intended side effect.
+   * and return the modified the params.
+   */
+  protected function setRecurReturnParams($params, $update) {
+    // Merge in the updates
+    $params = array_merge($params, $update);
+    // If the recurring record already exists, let's fix the next contribution and start dates,
+    // in case core isn't paying attention.
+    // We also set the schedule to 'in-progress' (even for ACH/EFT when the first one hasn't been verified),
+    // because we want the recurring job to run for this schedule.
+    if (!empty($params['contributionRecurID'])) {
+      $recur_id = $params['contributionRecurID'];
+      $recur_update = array(
+        'id' => $recur_id,
+        'contribution_status_id' => 'In Progress',
+        'processor_id' => $update['processor_id'],
+      );
+      // use the receive date to set the next sched contribution date.
+      // By default, it's empty, unless we've got a future start date.
+      if (empty($update['receive_date'])) {
+        $next = strtotime('+' . $params['frequency_interval'] . ' ' . $params['frequency_unit']);
+        $recur_update['next_sched_contribution_date'] = date('Ymd', $next) . '030000';
+      }
+      else {
+        $recur_update['start_date'] = $recur_update['next_sched_contribution_date'] = $update['receive_date'];
+        // If I've got a monthly schedule, let's set the cycle_day for niceness
+        if ('month' == $params['frequency_interval']) {
+          $recur_update['cycle_day'] = date('j', strtotime($recur_update['start_date']));
+        }
+      }
+      try {
+        $result = civicrm_api3('ContributionRecur', 'create', $recur_update);
+      }
+      catch (CiviCRM_API3_Exception $e) {
+        // Not a critical error, just log and continue.
+        $error = $e->getMessage();
+        Civi::log()->info('Unexpected error updating the next scheduled contribution date for id {id}: {error}', array('id' => $recur_id, 'error' => $error));
+      }
+    }
+    else {
+      Civi::log()->info('Unexpectedly unable to update the next scheduled contribution date, missing id.');
+    }
+    return $params;
+  }
+
+
+
 }
+
+
+
