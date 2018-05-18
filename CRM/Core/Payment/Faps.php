@@ -11,6 +11,7 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
    * @static
    */
   protected $_mode = null;
+  protected $use_cryptogram = FALSE;
 
   /**
    * Constructor
@@ -23,6 +24,7 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
     $this->_mode             = $mode;
     $this->_paymentProcessor = $paymentProcessor;
     $this->_processorName    = ts('iATS Payments 1st American Payment System Interface');
+    $this->use_cryptogram   = faps_get_setting('use_cryptogram');
   }
 
   /**
@@ -62,7 +64,11 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
    */
 
   protected function getCreditCardFormFields() {
-    return array('cryptogram');
+    $fields = parent::getCreditCardFormFields();
+    if ($this->use_cryptogram) {
+      $fields = array('cryptogram'); // + $fields;
+    }
+    return $fields;
   }
 
   /**
@@ -72,18 +78,23 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
    *
    * @return array
    *   field metadata
+   */
   public function getPaymentFormFieldsMetadata() {
     $metadata = parent::getPaymentFormFieldsMetadata();
-    $metadata['cryptogram'] = array(
+    if ($this->use_cryptogram) {
+      $metadata['cryptogram'] = array(
         'htmlType' => 'text',
         'cc_field' => TRUE,
         'name' => 'checkout-cryptogram',
         'title' => ts('Placeholder'),
         'attributes' => array(
           'class' => 'cryptogram',
+          'size' => 30,
+          'maxlength' => 60,
         ),
         'is_required' => FALSE,
-    );
+      );
+    }
     return $metadata;
   }
 

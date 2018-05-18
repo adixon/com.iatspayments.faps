@@ -33,6 +33,12 @@ class CRM_Faps_Form_Settings extends CRM_Core_Form {
 
     $this->add(
       'checkbox',
+      'use_cryptogram',
+      ts('Enable use of cryptogram (experimental, not working)')
+    );
+
+    $this->add(
+      'checkbox',
       'no_edit_extra',
       ts('Disable extra edit fields for Recurring Contributions')
     );
