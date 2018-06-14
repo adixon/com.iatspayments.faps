@@ -269,33 +269,35 @@ function faps_civicrm_buildForm_Contribution(&$form) {
   if (empty($faps_processors)) {
     return;
   }
+  // print_r($faps_processors); die();
   // die('test');
   $faps_processor = reset($faps_processors);
+  $is_cc = ($faps_processor['payment_instrument_id'] == 1);
+  $is_test = ($faps_processor['is_test'] == 1);
   if (faps_get_setting('use_cryptogram')) {
     $credentials = array(
       'transcenterId' => $faps_processor['password'],
   //    'merchantKey' => $faps_processor['signature'],
       'processorId' => $faps_processor['user_name']
     );
-    $cryptojs = 'https://secure.1stpaygateway.net/restgw/cdn/cryptogram.js';
-    $markup = sprintf("<script type=\"text/javascript\" 
-  id=\"checkout-js\" src=\"%s\" 
-  data-transcenter=\"%s\"
-  data-processor=\"%s\"
-  data-styleembed=\"False\"
-  xdata-hideframe=\"True\"
-  data-type=\"%s\"></script>\n", 
-    $cryptojs, $credentials['transcenterId'], $credentials['processorId'], 'sale');
-    // CRM_Core_Resources::singleton()->addScriptUrl($cryptojs);
+    $faps_domain = parse_url($faps_processor['url_site'], PHP_URL_HOST);
+    $cryptojs = 'https://'.$faps_domain.'/secure/PaymentHostedForm/Scripts/firstpay/firstpay.cryptogram.js';
+    $transaction_type = $is_cc ? 'Sale' : 'AchDebit';
+    $iframe_src = 'https://'.$faps_domain. '/secure/PaymentHostedForm/v3/' .($is_cc ? 'CreditCard' : 'Ach');
+    $iframe_style = 'width: 100%;'; // height: 100%;';
+    $markup = sprintf("<iframe id=\"firstpay-iframe\" src=\"%s\" style=\"%s\" data-transcenter-id=\"%s\" data-processor-id=\"%s\" data-transaction-type=\"%s\" data-manual-submit=\"false\"></iframe>\n", $iframe_src, $iframe_style,$credentials['transcenterId'], $credentials['processorId'], $transaction_type);
+    // $markup = "<iframe id=\"firstpay-iframe\" src=\"%s\" style=\"width: 100%; height: 100%\" data-transcenter-id=\"%s\" data-processor-id=\"%s\" data-transaction-type=\"%s\" data-manual-submit=\"false\"></iframe>\n";
+    // print_r('<pre>'.$markup.'</pre>'); die();
+    CRM_Core_Resources::singleton()->addScriptUrl($cryptojs);
     // $markup = print_r($faps_processors, TRUE);
     CRM_Core_Resources::singleton()->addScriptFile('com.iatspayments.faps', 'js/crypto.js', 10);
     CRM_Core_Resources::singleton()->addStyleFile('com.iatspayments.faps', 'css/crypto.css', 10);
-    CRM_Core_Region::instance('page-footer')->add(array(
-          'name' => $cryptojs,
+    CRM_Core_Region::instance('page-body')->add(array(
+          'name' => 'firstpay-iframe',
           'type' => 'markup',
           'markup' => $markup,
           'weight' => 11,
-          'region' => 'page-footer',
-        ));
+          'region' => 'page-body',
+        )); 
   }
 }

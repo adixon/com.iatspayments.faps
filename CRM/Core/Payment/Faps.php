@@ -66,7 +66,8 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
   protected function getCreditCardFormFields() {
     $fields = parent::getCreditCardFormFields();
     if ($this->use_cryptogram) {
-      $fields = array('cryptogram'); // + $fields;
+      // $fields[] = 'cryptogram';
+      $fields = array('cryptogram');
     }
     return $fields;
   }
@@ -85,20 +86,21 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
       $metadata['cryptogram'] = array(
         'htmlType' => 'text',
         'cc_field' => TRUE,
-        'name' => 'checkout-cryptogram',
-        'title' => ts('Placeholder'),
+        'name' => 'cryptogram',
+        'title' => ts('Cryptogram'),
         'attributes' => array(
           'class' => 'cryptogram',
           'size' => 30,
           'maxlength' => 60,
         ),
-        'is_required' => FALSE,
+        'is_required' => TRUE,
       );
     }
     return $metadata;
   }
 
   function doDirectPayment(&$params) {
+    // CRM_Core_Error::debug_var('doDirectPayment params', $params);
 
     // Check for valid currency
     if ('USD' != $params['currencyID']) {
@@ -120,6 +122,7 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
       'processorId' => $this->_paymentProcessor['user_name']
     );
     // Make the request.
+    // CRM_Core_Error::debug_var('doDirectPayment request', $request);
     $result = $faps->request($credentials, $request);
     $success = (!empty($result['isSuccess']));
     if ($success) {
@@ -154,6 +157,7 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
       return $params;
     }
     else {
+      CRM_Core_Error::debug_var('result',$result);
       return self::error($result);
     }
   }
@@ -192,6 +196,7 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
       'cardNumber' => 'credit_card_number',
 //      'cardtype' => 'credit_card_type',
       'cVV' => 'cvv2',
+      'creditCardCryptogram' => 'cryptogram',
     );
     foreach ($convert as $r => $p) {
       if (isset($params[$p])) {
@@ -207,8 +212,12 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
       }
     }
     $request['ownerName'] = $params['billing_first_name'].' '.$params['billing_last_name'];
-    $request['cardExpMonth'] = sprintf('%02d', $params['month']);
-    $request['cardExpYear'] = sprintf('%02d', $params['year'] % 100);
+    if (!empty($params['month'])) {
+      $request['cardExpMonth'] = sprintf('%02d', $params['month']);
+    }
+    if (!empty($params['year'])) {
+      $request['cardExpYear'] = sprintf('%02d', $params['year'] % 100);
+    }
     $request['transactionAmount'] = sprintf('%01.2f', CRM_Utils_Rule::cleanMoney($params['amount']));
     // print_r($request); print_r($params); die();
     return $request;
@@ -236,7 +245,7 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
       $error_string = '';
       if ($error['isError']) {
         foreach($error['errorMessages'] as $message) {
-          $error_string .= 'Error on '.$message['key'].': '.$message['message'];
+          $error_string .= $message;
         }
       }
       if ($error['validationHasFailed']) {
