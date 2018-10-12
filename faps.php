@@ -301,3 +301,37 @@ function faps_civicrm_buildForm_Contribution(&$form) {
         )); 
   }
 }
+
+
+/* Shared utility functions */
+
+/**
+ * For a recurring contribution, find a reasonable candidate for a template, where possible.
+ */
+function _faps_civicrm_getContributionTemplate($contribution) {
+  // Get the most recent contribution in this series that matches the same total_amount, if present.
+  $template = array();
+  $get = ['contribution_recur_id' => $contribution['contribution_recur_id'], 'options' => ['sort' => ' id DESC', 'limit' => 1]];
+  if (!empty($contribution['total_amount'])) {
+    $get['total_amount'] = $contribution['total_amount'];
+  }
+  $result = civicrm_api3('contribution', 'get', $get);
+  if (!empty($result['values'])) {
+    $template = reset($result['values']);
+    $contribution_id = $template['id'];
+    $template['original_contribution_id'] = $contribution_id;
+    $template['line_items'] = array();
+    $get = array('entity_table' => 'civicrm_contribution', 'entity_id' => $contribution_id);
+    $result = civicrm_api3('LineItem', 'get', $get);
+    if (!empty($result['values'])) {
+      foreach ($result['values'] as $initial_line_item) {
+        $line_item = array();
+        foreach (array('price_field_id', 'qty', 'line_total', 'unit_price', 'label', 'price_field_value_id', 'financial_type_id') as $key) {
+          $line_item[$key] = $initial_line_item[$key];
+        }
+        $template['line_items'][] = $line_item;
+      }
+    }
+  }
+  return $template;
+}
