@@ -138,12 +138,17 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
         $options = array('action' => 'VaultCreateCCRecord');
         $vault = new Faps_Request($options);
         $create = array(
-          'cardExpMonth' => $request['cardExpMonth'],
-          'cardExpYear' => $request['cardExpYear'],
           'creditCardToken' => $result['data']['referenceNumber'],
           'ipAddress' => $request['ipAddress'],
           'vaultKey' => $vaultKey
         );
+        if (!empty($request['creditCardCryptogram'])) {
+          $create['creditCardCryptogram'] = $request['creditCardCryptogram'];
+        } 
+        else {
+          $create['cardExpMonth'] = $request['cardExpMonth'];
+          $create['cardExpYear'] = $request['cardExpYear'];
+        }
         $create_result = $vault->request($credentials,$create); 
         if (!empty($create_result['isSuccess'])) {
           $update = array('processor_id' => $vaultKey.':'.$create_result['data']['id']);
