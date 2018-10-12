@@ -126,6 +126,7 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
     $result = $faps->request($credentials, $request);
     $success = (!empty($result['isSuccess']));
     if ($success) {
+      // put the old return param in just to be sure
       $params['contribution_status_id'] = 1;
       // For versions >= 4.6.6, the proper key.
       $params['payment_status_id'] = 1;
