@@ -106,60 +106,59 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
     if ('USD' != $params['currencyID']) {
       return self::error('Invalid currency selection: ' . $params['currencyID']);
     }
-    // Use the Faps Request object for interacting with FAPS
-    require_once "CRM/Faps/Request.php";
+    // We'll use the lower-level Faps Request object for interacting with FAPS
+    // require_once "CRM/Faps/Request.php";
+    // ? flow is special when using isRecur and usingCrypto ...
     $isRecur = CRM_Utils_Array::value('is_recur', $params) && $params['contributionRecurID'];
-    // $method = $isRecur ? 'create_credit_card_customer' : 'cc';
-    $options = array('action' => 'Sale');
-    if ($this->_mode == 'test') {
-      $options['test'] = 1;
-    }
-    $faps = new Faps_Request($options);
-    $request = $this->convertParams($params, $options['action']);
-    $request['ipAddress'] = (function_exists('ip_address') ? ip_address() : $_SERVER['REMOTE_ADDR']);
+    $usingCrypto = !empty($params['cryptogram']);
     $credentials = array(
       'merchantKey' => $this->_paymentProcessor['signature'],
       'processorId' => $this->_paymentProcessor['user_name']
     );
+    if ($isRecur) {
+      // I'm going to store some of the params in a vault before attempting payment
+      $options = array(
+        'action' => 'VaultCreateCCRecord',
+        /* 'test' => ($this->_mode == 'test' ? 1 : 0),  */
+      );
+      $vault = new CRM_Faps_Request($options);
+      $request = $this->convertParams($params, $options['action']);
+      $request['ipAddress'] = (function_exists('ip_address') ? ip_address() : $_SERVER['REMOTE_ADDR']);
+      // Make the request.
+      CRM_Core_Error::debug_var('vault request', $request);
+      $result = $vault->request($credentials, $request);
+      CRM_Core_Error::debug_var('vault result', $result);
+      if (!empty($result['isSuccess'])) {
+        $update = array('processor_id' => $request['vaultkey'].':'.$result['data']['id']);
+        // Setting the next_sched_contribution_date param doesn't do anything, commented out, work around in setRecurReturnParams
+        $params = $this->setRecurReturnParams($params, $update);
+      }
+      else {
+        // CRM_Core_Error::debug_var('vault request', $result);
+        return self::error($result);
+      }
+      // hack params so that we're now using the vault information
+    }
+    // now take the money
+    $options = array(
+      'action' => ($isRecur ? 'Sale' : 'SaleUsingVault'),
+      'test' => ($this->_mode == 'test' ? 1 : 0),
+    );
+    $faps = new CRM_Faps_Request($options);
+    $request = $this->convertParams($params, $options['action']);
+    $request['ipAddress'] = (function_exists('ip_address') ? ip_address() : $_SERVER['REMOTE_ADDR']);
     // Make the request.
     // CRM_Core_Error::debug_var('doDirectPayment request', $request);
     $result = $faps->request($credentials, $request);
     $success = (!empty($result['isSuccess']));
     if ($success) {
+      CRM_Core_Error::debug_var('result', $result);
       // put the old return param in just to be sure
       $params['contribution_status_id'] = 1;
       // For versions >= 4.6.6, the proper key.
       $params['payment_status_id'] = 1;
       $params['trxn_id'] = trim($result['data']['authCode']) . ':' . trim($result['data']['referenceNumber']);
       $params['gross_amount'] = $params['amount'];
-      if ($isRecur) { // store it in the vault
-        // return self::error(ts('Recurring function is not implemented'));
-        $vaultKey = preg_replace("/[^a-z0-9]/", '', strtolower($request['ownerEmail']));
-        $vaultKey .= '!'.md5(uniqid(rand(), TRUE));
-        $options = array('action' => 'VaultCreateCCRecord');
-        $vault = new Faps_Request($options);
-        $create = array(
-          'creditCardToken' => $result['data']['referenceNumber'],
-          'ipAddress' => $request['ipAddress'],
-          'vaultKey' => $vaultKey
-        );
-        if (!empty($request['creditCardCryptogram'])) {
-          $create['creditCardCryptogram'] = $request['creditCardCryptogram'];
-        } 
-        else {
-          $create['cardExpMonth'] = $request['cardExpMonth'];
-          $create['cardExpYear'] = $request['cardExpYear'];
-        }
-        $create_result = $vault->request($credentials,$create); 
-        if (!empty($create_result['isSuccess'])) {
-          $update = array('processor_id' => $vaultKey.':'.$create_result['data']['id']);
-          // Setting the next_sched_contribution_date param doesn't do anything, commented out, work around in setRecurReturnParams
-          $params = $this->setRecurReturnParams($params, $update);
-        }
-        else {
-          CRM_Core_Error::debug_var('vault request', $create_result);
-        }
-      }
       return $params;
     }
     else {
@@ -225,6 +224,13 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
       $request['cardExpYear'] = sprintf('%02d', $params['year'] % 100);
     }
     $request['transactionAmount'] = sprintf('%01.2f', CRM_Utils_Rule::cleanMoney($params['amount']));
+    // dditional method-specific values
+    switch ($method) {
+      case 'VaultCreateCCRecord':
+        // auto-generate a compliant vault key  
+        $safe_email_key = preg_replace("/[^a-z0-9]/", '', strtolower($request['ownerEmail']));
+        $request['vaultKey'] = $safe_email_key . '!'.md5(uniqid(rand(), TRUE));
+    }
     // print_r($request); print_r($params); die();
     return $request;
   }
