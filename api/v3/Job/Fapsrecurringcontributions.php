@@ -84,7 +84,8 @@ function civicrm_api3_job_Fapsrecurringcontributions($params) {
       'contribution_status_id' => ['IN' => ['In Progress', 'Pending', 'Overdue']],
       'options' => ['limit' => 0],
       'return' => ['id', 'contact_id', 'amount', 'processor_id', 'failure_count', 'payment_processor_id', 'next_sched_contribution_date',
-                   'processor_id', 'payment_instrument_id', 'is_test', 'currency', 'financial_type_id','is_email_receipt'],
+      'processor_id', 'payment_instrument_id', 'is_test', 'currency', 'financial_type_id','is_email_receipt',
+      'frequency_interval', 'frequency_unit'],
   );
   // additional filters that may be passed in as params
   if (!empty($params['recur_id'])) {
@@ -115,7 +116,7 @@ function civicrm_api3_job_Fapsrecurringcontributions($params) {
     $payment_processor_id = $recurringContribution['payment_processor_id'];
     $vault = $recurringContribution['processor_id'];
     // Try to get a contribution template for this contribution series - if none matches (e.g. if a donation amount has been changed), we'll just be naive about it.
-    $contribution_template = _faps_civicrm_getContributionTemplate(['contribution_recur_id' => $contribution_recur_id, 'total_amount' => $total_amount]);
+    $contribution_template = CRM_Faps_Transaction::getContributionTemplate(['contribution_recur_id' => $contribution_recur_id, 'total_amount' => $total_amount]);
     CRM_Core_Error::debug_var('Contribution Template', $contribution_template);
     // generate my invoice id like CiviCRM does
     $hash = md5(uniqid(rand(), TRUE));
@@ -227,7 +228,7 @@ function civicrm_api3_job_Fapsrecurringcontributions($params) {
       // and then try to get the money, and then do one of:
       // update the contribution to failed, leave as pending for server failure, complete the transaction,
       // or update a pending ach/eft with it's transaction id.
-      $result = _faps_process_contribution_payment($contribution, $options, $original_contribution_id);
+      $result = CRM_Faps_Transaction::process_contribution_payment($contribution, $options, $original_contribution_id);
       if ($email_failure_report && !empty($contribution['iats_reject_code'])) {
         $failure_report_text .= "\n $result ";
       }
