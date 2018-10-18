@@ -64,11 +64,7 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
    */
 
   protected function getCreditCardFormFields() {
-    $fields = parent::getCreditCardFormFields();
-    if ($this->use_cryptogram) {
-      // $fields[] = 'cryptogram';
-      $fields = array('cryptogram');
-    }
+    $fields =  $this->use_cryptogram ? array('cryptogram') : parent::getCreditCardFormFields();
     return $fields;
   }
 
@@ -99,7 +95,20 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
     return $metadata;
   }
 
-  function doDirectPayment(&$params) {
+  /**
+   * function doDirectPayment
+   *
+   * This is the function for taking a payment using a core payment form of any kind.
+   *
+   * Here's the thing: if we are using the cryptogram with recurring, then the cryptogram
+   * needs to be configured for use with the vault. The cryptogram iframe is created before
+   * I know whether the contribution will be recurring or not, so that forces me to always
+   * use the vault, if recurring is an option.
+   * 
+   * So: the best we can do is to avoid the use of the vault if I'm not using the cryptogram, or if I'm on a page that
+   * doesn't offer recurring contributions.
+   */
+  public function doDirectPayment(&$params) {
     // CRM_Core_Error::debug_var('doDirectPayment params', $params);
 
     // Check for valid currency
@@ -108,51 +117,74 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
     }
     // We'll use the lower-level Faps Request object for interacting with FAPS
     // require_once "CRM/Faps/Request.php";
-    // ? flow is special when using isRecur and usingCrypto ...
+    // flow is special when using hasIsRecur and usingCrypto, I have to use the vault
     $isRecur = CRM_Utils_Array::value('is_recur', $params) && $params['contributionRecurID'];
+    $hasIsRecur = (CRM_Utils_Array::value('frequency_interval', $params) > 0);
     $usingCrypto = !empty($params['cryptogram']);
+    $isCreditCard = (1 == $this->_paymentProcessor['payment_instrument_id']);
+    $ipAddress = (function_exists('ip_address') ? ip_address() : $_SERVER['REMOTE_ADDR']);
     $credentials = array(
       'merchantKey' => $this->_paymentProcessor['signature'],
       'processorId' => $this->_paymentProcessor['user_name']
     );
-    if ($isRecur) {
-      // I'm going to store some of the params in a vault before attempting payment
+    $vault_key = $vault_id = '';
+    if (($hasIsRecur  && $usingCrypto) || $isRecur) {
+      // Store the params in a vault before attempting payment
       $options = array(
-        'action' => 'VaultCreateCCRecord',
-        /* 'test' => ($this->_mode == 'test' ? 1 : 0),  */
+        'action' => ($isCreditCard ? 'VaultCreateCCRecord' : 'VaultCreateAchRecord'),
+        'test' => ($this->_mode == 'test' ? 1 : 0),
       );
-      $vault = new CRM_Faps_Request($options);
+      $vault_request = new CRM_Faps_Request($options);
       $request = $this->convertParams($params, $options['action']);
-      $request['ipAddress'] = (function_exists('ip_address') ? ip_address() : $_SERVER['REMOTE_ADDR']);
+      // auto-generate a compliant vault key  
+      $safe_email_key = preg_replace("/[^a-z0-9]/", '', strtolower($request['ownerEmail']));
+      $vault_key = $safe_email_key . '!'.md5(uniqid(rand(), TRUE));
+      $request['vaultKey'] = $vault_key;
+      $request['ipAddress'] = $ipAddress;
       // Make the request.
-      CRM_Core_Error::debug_var('vault request', $request);
-      $result = $vault->request($credentials, $request);
-      CRM_Core_Error::debug_var('vault result', $result);
+      // CRM_Core_Error::debug_var('vault request', $request);
+      $result = $vault_request->request($credentials, $request);
+      // unset the cryptogram param, we can't use it again and don't want to return it anyway.
+      unset($params['cryptogram']);
+      // CRM_Core_Error::debug_var('vault result', $result);
       if (!empty($result['isSuccess'])) {
-        $update = array('processor_id' => $request['vaultkey'].':'.$result['data']['id']);
-        // Setting the next_sched_contribution_date param doesn't do anything, commented out, work around in setRecurReturnParams
-        $params = $this->setRecurReturnParams($params, $update);
+        $vault_id = $result['data']['id'];
+        if ($isRecur) {
+          $update = array('processor_id' => ($vault_key.':'.$vault_id));
+          // updateRecurring, incluing updating the next scheduled contribution date, before taking payment.
+          $this->updateRecurring($params, $update);
+        }
       }
       else {
-        // CRM_Core_Error::debug_var('vault request', $result);
+        CRM_Core_Error::debug_var('vault result', $result);
         return self::error($result);
       }
-      // hack params so that we're now using the vault information
+      // now set the options for taking the money
+      $options = array(
+        'action' => ($isCreditCard ? 'SaleUsingVault' : 'AchDebitUsingVault'),
+        'test' => ($this->_mode == 'test' ? 1 : 0),
+      );
+    }
+    else { // set the simple sale option for taking the money
+      $options = array(
+        'action' => ($isCreditCard ? 'Sale' : 'AchDebit'),
+        'test' => ($this->_mode == 'test' ? 1 : 0),
+      );
     }
     // now take the money
-    $options = array(
-      'action' => ($isRecur ? 'Sale' : 'SaleUsingVault'),
-      'test' => ($this->_mode == 'test' ? 1 : 0),
-    );
-    $faps = new CRM_Faps_Request($options);
+    $payment_request = new CRM_Faps_Request($options);
     $request = $this->convertParams($params, $options['action']);
-    $request['ipAddress'] = (function_exists('ip_address') ? ip_address() : $_SERVER['REMOTE_ADDR']);
+    $request['ipAddress'] = $ipAddress;
+    if ($vault_id) {
+      $request['vaultKey'] = $vault_key;
+      $request['vaultId'] = $vault_id;
+    }
     // Make the request.
-    // CRM_Core_Error::debug_var('doDirectPayment request', $request);
-    $result = $faps->request($credentials, $request);
+    // CRM_Core_Error::debug_var('payment request', $request);
+    $result = $payment_request->request($credentials, $request);
+    // CRM_Core_Error::debug_var('result', $result);
     $success = (!empty($result['isSuccess']));
     if ($success) {
-      CRM_Core_Error::debug_var('result', $result);
       // put the old return param in just to be sure
       $params['contribution_status_id'] = 1;
       // For versions >= 4.6.6, the proper key.
@@ -224,13 +256,7 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
       $request['cardExpYear'] = sprintf('%02d', $params['year'] % 100);
     }
     $request['transactionAmount'] = sprintf('%01.2f', CRM_Utils_Rule::cleanMoney($params['amount']));
-    // dditional method-specific values
-    switch ($method) {
-      case 'VaultCreateCCRecord':
-        // auto-generate a compliant vault key  
-        $safe_email_key = preg_replace("/[^a-z0-9]/", '', strtolower($request['ownerEmail']));
-        $request['vaultKey'] = $safe_email_key . '!'.md5(uniqid(rand(), TRUE));
-    }
+    // additional method-specific values
     // print_r($request); print_r($params); die();
     return $request;
   }
@@ -277,7 +303,7 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
   }
 
   /*
-   * Set the return params for recurring contributions.
+   * Update the recurring contribution record.
    *
    * Implemented as a function so I can do some cleanup and implement
    * the ability to set a future start date for recurring contributions.
@@ -287,9 +313,7 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
    * This function will alter the recurring schedule as an intended side effect.
    * and return the modified the params.
    */
-  protected function setRecurReturnParams($params, $update) {
-    // Merge in the updates
-    $params = array_merge($params, $update);
+  protected function updateRecurring($params, $update) {
     // If the recurring record already exists, let's fix the next contribution and start dates,
     // in case core isn't paying attention.
     // We also set the schedule to 'in-progress' (even for ACH/EFT when the first one hasn't been verified),
@@ -316,6 +340,7 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
       }
       try {
         $result = civicrm_api3('ContributionRecur', 'create', $recur_update);
+        return $result;
       }
       catch (CiviCRM_API3_Exception $e) {
         // Not a critical error, just log and continue.
@@ -326,7 +351,7 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
     else {
       Civi::log()->info('Unexpectedly unable to update the next scheduled contribution date, missing id.');
     }
-    return $params;
+    return false;
   }
 
 
