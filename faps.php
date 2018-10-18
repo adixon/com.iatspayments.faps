@@ -239,7 +239,7 @@ function faps_civicrm_buildForm($formName, &$form) {
  */
 function faps_civicrm_buildForm_Contribution(&$form) {
   // Skip if i don't have any processors.
-  //echo '<pre>'; print_r($form); die();
+  // echo '<pre>'; print_r(array_keys(get_object_vars($form))); die();
   if (empty($form->_processors)) {
    // return;
   }
@@ -274,6 +274,7 @@ function faps_civicrm_buildForm_Contribution(&$form) {
   $faps_processor = reset($faps_processors);
   $is_cc = ($faps_processor['payment_instrument_id'] == 1);
   $is_test = ($faps_processor['is_test'] == 1);
+  $has_is_recur = $form->elementExists('is_recur');
   if (faps_get_setting('use_cryptogram')) {
     $credentials = array(
       'transcenterId' => $faps_processor['password'],
@@ -282,7 +283,7 @@ function faps_civicrm_buildForm_Contribution(&$form) {
     );
     $faps_domain = parse_url($faps_processor['url_site'], PHP_URL_HOST);
     $cryptojs = 'https://'.$faps_domain.'/secure/PaymentHostedForm/Scripts/firstpay/firstpay.cryptogram.js';
-    $transaction_type = $is_cc ? 'Sale' : 'AchDebit';
+    $transaction_type = $has_is_recur ? ($is_cc ? 'Vault' : 'AchVault') : ($is_cc ? 'Sale' : 'AchDebit');
     $iframe_src = 'https://'.$faps_domain. '/secure/PaymentHostedForm/v3/' .($is_cc ? 'CreditCard' : 'Ach');
     $iframe_style = 'width: 100%;'; // height: 100%;';
     $markup = sprintf("<iframe id=\"firstpay-iframe\" src=\"%s\" style=\"%s\" data-transcenter-id=\"%s\" data-processor-id=\"%s\" data-transaction-type=\"%s\" data-manual-submit=\"false\"></iframe>\n", $iframe_src, $iframe_style,$credentials['transcenterId'], $credentials['processorId'], $transaction_type);
