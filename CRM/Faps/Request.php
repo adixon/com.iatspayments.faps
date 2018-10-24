@@ -39,7 +39,7 @@ class Faps_Transaction implements JsonSerializable {
 /**
  *
  */
-class Faps_Request {
+class CRM_Faps_Request {
 
 
   public $result = array();
