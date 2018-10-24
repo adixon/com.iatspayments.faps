@@ -165,7 +165,7 @@ class CRM_Faps_Transaction {
           }
         }
         else {
-          // just save my trxn_id for ACH/EFT verification later
+          // just save my trxn_id for ACH verification later
           try {
             civicrm_api3('Contribution', 'create', array(
               'id' => $contribution['id'],
@@ -225,7 +225,7 @@ class CRM_Faps_Transaction {
       return ts('Successfully processed recurring contribution in series id %1: ', array(1 => $contribution['contribution_recur_id'])) . $result['auth_result'];
     }
     else {
-      // I'm using ACH/EFT or a processor that doesn't complete.
+      // I'm using ACH or a processor that doesn't complete.
       return ts('Successfully processed pending recurring contribution in series id %1: ', array(1 => $contribution['contribution_recur_id'])) . $result['auth_result'];
     }
   }
@@ -241,7 +241,7 @@ class CRM_Faps_Transaction {
   function process_transaction($contribution, $options) {
     // require_once "CRM/Faps/Request.php";
     switch ($options['subtype']) {
-      case 'EFT':
+      case 'ACH':
         die('Not implemented');
         // Will not complete.
         $contribution_status_id = 2;
@@ -259,7 +259,7 @@ class CRM_Faps_Transaction {
     $service_params = array('action' => $action);
     $faps = new CRM_Faps_Request($service_params);
     // Build the request array.
-    CRM_Core_Error::debug_var('options', $options);
+    // CRM_Core_Error::debug_var('options', $options);
     list($vaultKey,$vaultId) = explode(':', $options['vault'], 2);
     $request = array(
       'vaultKey' => $vaultKey,
@@ -268,16 +268,19 @@ class CRM_Faps_Transaction {
       'transactionAmount' => sprintf('%01.2f', CRM_Utils_Rule::cleanMoney($contribution['total_amount'])),
       'ipAddress' => (function_exists('ip_address') ? ip_address() : $_SERVER['REMOTE_ADDR']),
     );
-    // remove the customerIPAddress if it's the internal loopback to prevent
+    // remove the customerIPAddress if it's non-routable, to prevent
     // being locked out due to velocity checks
-    if ('127.0.0.1' == $request['ipAddress']) {
+    if (!filter_var($request['ipAddress'],
+      FILTER_VALIDATE_IP, 
+      FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE |  FILTER_FLAG_NO_RES_RANGE)) {
        $request['ipAddress'] = '';
     }
     // Make the request.
-    CRM_Core_Error::debug_var('process transaction request', $request);
+    // CRM_Core_Error::debug_var('process transaction request', $request);
     $result = $faps->request($credentials, $request);
+    // CRM_Core_Error::debug_var('process transaction result', $result);
     $success = (!empty($result['isSuccess']));
-    // pass back the anticipated status_id based on the method (i.e. 1 for CC, 2 for ACH/EFT)
+    // pass back the anticipated status_id based on the method (i.e. 1 for CC, 2 for ACH)
     $result['contribution_status_id'] = $contribution_status_id;
     return $result;
   }
