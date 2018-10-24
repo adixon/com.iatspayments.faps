@@ -130,12 +130,42 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
     $vault_key = $vault_id = '';
     if (($hasIsRecur  && $usingCrypto) || $isRecur) {
       // Store the params in a vault before attempting payment
+      // If it's a cc request, then I first have to convert the Auth crypto into a token.
+      if ($isCreditCard) {
+        $options = array(
+          'action' => 'GenerateTokenFromCreditCard',
+          'test' => ($this->_mode == 'test' ? 1 : 0),
+        );
+        $token_request = new CRM_Faps_Request($options);
+        $request = $this->convertParams($params, $options['action']);
+        $request['ipAddress'] = $ipAddress;
+        // Make the request.
+        // CRM_Core_Error::debug_var('token request', $request);
+        $result = $token_request->request($credentials, $request);
+        // CRM_Core_Error::debug_var('token result', $result);
+        // unset the cryptogram param and request values, we can't use it again and don't want to return it anyway.
+        unset($params['cryptogram']);
+        unset($request['creditCardCryptogram']);
+        if (!empty($result['isSuccess'])) {
+          // some of the result[data] is not useful, we're assuming it's not harmful.
+          $request = array_merge($request, $result['data']);
+        }
+        else {
+          CRM_Core_Error::debug_var('token request error result', $result);
+          return self::error($result);
+        }
+        $action = 'VaultCreateCCRecord';
+      }
+      else { // ACH
+        $action = 'VaultCreateAchRecord';
+        $request = $this->convertParams($params, $action);
+      }
+      // now the common code for cc and ach, make the request.
       $options = array(
-        'action' => ($isCreditCard ? 'VaultCreateCCRecord' : 'VaultCreateAchRecord'),
+        'action' => $action,
         'test' => ($this->_mode == 'test' ? 1 : 0),
       );
       $vault_request = new CRM_Faps_Request($options);
-      $request = $this->convertParams($params, $options['action']);
       // auto-generate a compliant vault key  
       $safe_email_key = preg_replace("/[^a-z0-9]/", '', strtolower($request['ownerEmail']));
       $vault_key = $safe_email_key . '!'.md5(uniqid(rand(), TRUE));
@@ -280,17 +310,18 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
       );
     }
     elseif (is_array($error)) {
-      $error_string = '';
+      $errors = array();
       if ($error['isError']) {
         foreach($error['errorMessages'] as $message) {
-          $error_string .= $message;
+          $errors[] = $message;
         }
       }
       if ($error['validationHasFailed']) {
         foreach($error['validationFailures'] as $message) {
-          $error_string .= 'Validation failure for '.$message['key'].': '.$message['message'];
+          $errors[] = 'Validation failure for '.$message['key'].': '.$message['message'];
         }
       }
+      $error_string = implode('<br />',$errors);
       $e->push(9002,
         0, NULL,
         $error_string
