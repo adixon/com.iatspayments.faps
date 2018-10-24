@@ -79,7 +79,7 @@ function civicrm_api3_job_Fapsrecurringcontributions($params) {
   // Now we're ready to trigger payments
   // Select the ongoing recurring payments for FAPS where the next scheduled contribution date is before the end of of the current day.
   $get = array(
-      'next_sched_contribution_date' => ['<=' => 'today'],
+      'next_sched_contribution_date' => ['<=' => $dtCurrentDayEnd],
       'payment_processor_id' => ['IN' => array_keys($fapsProcessors)],
       'contribution_status_id' => ['IN' => ['In Progress', 'Pending', 'Overdue']],
       'options' => ['limit' => 0],
@@ -120,7 +120,7 @@ function civicrm_api3_job_Fapsrecurringcontributions($params) {
     CRM_Core_Error::debug_var('Contribution Template', $contribution_template);
     // generate my invoice id like CiviCRM does
     $hash = md5(uniqid(rand(), TRUE));
-    $original_contribution_id = $contribution_template['original_contribution_id'];
+    $original_contribution_id = empty($contribution_template['original_contribution_id']) ? 0 : $contribution_template['original_contribution_id'];
     $failure_count    = $recurringContribution['failure_count'];
     $paymentProcessor = $fapsProcessors[$payment_processor_id];
     $subtype = substr($paymentProcessor['class_name'], 13);
