@@ -84,21 +84,25 @@ class CRM_Faps_Transaction {
     // First try and get the money, using my process_transaction cover function.
     // TODO: convert this into an api job?
     $result =  self::process_transaction($contribution, $options);
+    $error_message = implode('<br />',$result['errorMessages']);
     $success = (!empty($result['isSuccess']));
+    $auth_code = empty($result['data']['authCode']) ? '' : trim($result['data']['authCode']);
+    $auth_response = empty($result['data']['authResponse']) ? '' : trim($result['data']['authResponse']);
+    $reference_number = empty($result['data']['referenceNumber']) ? '' : trim($result['data']['referenceNumber']);
     // Handle any case of a failure of some kind, either the card failed, or the system failed.
     if (!$success) {
       /* set the failed transaction status, or pending if I had a server issue */
-      $contribution['contribution_status_id'] = empty($result['data']['authCode']) ? 2 : 4;
+      $contribution['contribution_status_id'] = empty($auth_code) ? 2 : 4;
       /* and include the reason in the source field */
-      $contribution['source'] .= ' ' . implode(' ',$result['errorMessages']);
+      $contribution['source'] .= ' ' . $error_message;
       // Save any reject code here for processing by the calling function (a bit lame)
       if ($contribution['contribution_status_id'] == 4) {
-        $contribution['faps_reject_code'] = $result['data']['authCode'];
+        $contribution['faps_reject_code'] = $auth_code;
       }
     }
     else {
       // I have a transaction id.
-      $trxn_id = $contribution['trxn_id'] = trim($result['data']['authCode']) . ':' . trim($result['data']['referenceNumber']);
+      $trxn_id = $contribution['trxn_id'] = $auth_code . ':' . $reference_number;
       // Initialize the status to pending
       $contribution['contribution_status_id'] = 2;
       // We'll use the repeattransaction api for successful transactions under two conditions:
@@ -195,7 +199,7 @@ class CRM_Faps_Transaction {
         }
       }
       /* And then I'm done unless it completed */
-      if ($result['contribution_status_id'] == 1 && !empty($result['status'])) {
+      if ($result['contribution_status_id'] == 1 && $success) {
         /* success, and the transaction has completed */
         $complete = array('id' => $contribution['id'], 
           'payment_processor_id' => $contribution['payment_processor'],
@@ -214,19 +218,19 @@ class CRM_Faps_Transaction {
         civicrm_api3('contribution', 'setvalue', array('id' => $contribution['id'], 'value' => $contribution['source'], 'field' => 'source'));
         civicrm_api3('contribution', 'setvalue', array('id' => $contribution['id'], 'value' => $trxn_id, 'field' => 'trxn_id'));
         $message = $is_recurrence ? ts('Successfully processed contribution in recurring series id %1: ', array(1 => $contribution['contribution_recur_id'])) : ts('Successfully processed one-time contribution: ');
-        return $message . $result['auth_result'];
+        return $message . $auth_response;
       }
     }
     // Now return the appropriate message. 
-    if (empty($result['status'])) {
-      return ts('Failed to process recurring contribution id %1: ', array(1 => $contribution['contribution_recur_id'])) . implode(' ',$result['errorMessages']);
+    if (!$success) {
+      return ts('Failed to process recurring contribution id %1: %2', array(1 => $contribution['contribution_recur_id'], 2 => $error_message));
     }
     elseif ($result['contribution_status_id'] == 1) {
-      return ts('Successfully processed recurring contribution in series id %1: ', array(1 => $contribution['contribution_recur_id'])) . $result['auth_result'];
+      return ts('Successfully processed recurring contribution in series id %1: %2', array(1 => $contribution['contribution_recur_id'], 2 => $auth_result));
     }
     else {
       // I'm using ACH or a processor that doesn't complete.
-      return ts('Successfully processed pending recurring contribution in series id %1: ', array(1 => $contribution['contribution_recur_id'])) . $result['auth_result'];
+      return ts('Successfully processed pending recurring contribution in series id %1: %2', array(1 => $contribution['contribution_recur_id'], 2 => $auth_result));
     }
   }
 
