@@ -115,13 +115,11 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
     if ('USD' != $params['currencyID']) {
       return self::error('Invalid currency selection: ' . $params['currencyID']);
     }
-    // We'll use the lower-level Faps Request object for interacting with FAPS
-    // require_once "CRM/Faps/Request.php";
     // flow is special when using hasIsRecur and usingCrypto, I have to use the vault
+    // This is true even if the user has not chosen recur, because I have to choose the crypto iframe type when the page is generated.
     $isRecur = CRM_Utils_Array::value('is_recur', $params) && $params['contributionRecurID'];
     $hasIsRecur = (CRM_Utils_Array::value('frequency_interval', $params) > 0);
     $usingCrypto = !empty($params['cryptogram']);
-    $isCreditCard = (1 == $this->_paymentProcessor['payment_instrument_id']);
     $ipAddress = (function_exists('ip_address') ? ip_address() : $_SERVER['REMOTE_ADDR']);
     $credentials = array(
       'merchantKey' => $this->_paymentProcessor['signature'],
@@ -130,52 +128,41 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
     $vault_key = $vault_id = '';
     if (($hasIsRecur  && $usingCrypto) || $isRecur) {
       // Store the params in a vault before attempting payment
-      // If it's a cc request, then I first have to convert the Auth crypto into a token.
-      if ($isCreditCard) {
-        $options = array(
-          'action' => 'GenerateTokenFromCreditCard',
-          'test' => ($this->_mode == 'test' ? 1 : 0),
-        );
-        $token_request = new CRM_Faps_Request($options);
-        $request = $this->convertParams($params, $options['action']);
-        $request['ipAddress'] = $ipAddress;
-        // Make the request.
-        // CRM_Core_Error::debug_var('token request', $request);
-        $result = $token_request->request($credentials, $request);
-        // CRM_Core_Error::debug_var('token result', $result);
-        // unset the cryptogram param and request values, we can't use it again and don't want to return it anyway.
-        unset($params['cryptogram']);
-        unset($request['creditCardCryptogram']);
-        if (!empty($result['isSuccess'])) {
-          // some of the result[data] is not useful, we're assuming it's not harmful.
-          $request = array_merge($request, $result['data']);
-        }
-        else {
-          CRM_Core_Error::debug_var('token request error result', $result);
-          return self::error($result);
-        }
-        $action = 'VaultCreateCCRecord';
-      }
-      else { // ACH
-        $action = 'VaultCreateAchRecord';
-        $request = $this->convertParams($params, $action);
-      }
-      // now the common code for cc and ach, make the request.
+      // I first have to convert the Auth crypto into a token.
       $options = array(
-        'action' => $action,
+        'action' => 'GenerateTokenFromCreditCard',
+        'test' => ($this->_mode == 'test' ? 1 : 0),
+      );
+      $token_request = new CRM_Faps_Request($options);
+      $request = $this->convertParams($params, $options['action']);
+      $request['ipAddress'] = $ipAddress;
+      // Make the request.
+      // CRM_Core_Error::debug_var('token request', $request);
+      $result = $token_request->request($credentials, $request);
+      // CRM_Core_Error::debug_var('token result', $result);
+      // unset the cryptogram param and request values, we can't use the cryptogram again and don't want to return it anyway.
+      unset($params['cryptogram']);
+      unset($request['creditCardCryptogram']);
+      unset($token_request);
+      if (!empty($result['isSuccess'])) {
+        // some of the result[data] is not useful, we're assuming it's not harmful to include in future requests here.
+        $request = array_merge($request, $result['data']);
+      }
+      else {
+        return self::error($result);
+      }
+      $options = array(
+        'action' => 'VaultCreateCCRecord',
         'test' => ($this->_mode == 'test' ? 1 : 0),
       );
       $vault_request = new CRM_Faps_Request($options);
       // auto-generate a compliant vault key  
-      $safe_email_key = preg_replace("/[^a-z0-9]/", '', strtolower($request['ownerEmail']));
-      $vault_key = $safe_email_key . '!'.md5(uniqid(rand(), TRUE));
+      $vault_key = CRM_Faps_Transaction::generateVaultKey($request['ownerEmail']);
       $request['vaultKey'] = $vault_key;
       $request['ipAddress'] = $ipAddress;
       // Make the request.
       // CRM_Core_Error::debug_var('vault request', $request);
       $result = $vault_request->request($credentials, $request);
-      // unset the cryptogram param, we can't use it again and don't want to return it anyway.
-      unset($params['cryptogram']);
       // CRM_Core_Error::debug_var('vault result', $result);
       if (!empty($result['isSuccess'])) {
         $vault_id = $result['data']['id'];
@@ -186,18 +173,17 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
         }
       }
       else {
-        CRM_Core_Error::debug_var('vault result', $result);
         return self::error($result);
       }
       // now set the options for taking the money
       $options = array(
-        'action' => ($isCreditCard ? 'SaleUsingVault' : 'AchDebitUsingVault'),
+        'action' => 'SaleUsingVault',
         'test' => ($this->_mode == 'test' ? 1 : 0),
       );
     }
-    else { // set the simple sale option for taking the money
+    else { // no recurring options in sight, set the simple sale option for taking the money
       $options = array(
-        'action' => ($isCreditCard ? 'Sale' : 'AchDebit'),
+        'action' => 'Sale',
         'test' => ($this->_mode == 'test' ? 1 : 0),
       );
     }
@@ -215,7 +201,7 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
     // CRM_Core_Error::debug_var('result', $result);
     $success = (!empty($result['isSuccess']));
     if ($success) {
-      // put the old return param in just to be sure
+      // put the old version of the return param in just to be sure
       $params['contribution_status_id'] = 1;
       // For versions >= 4.6.6, the proper key.
       $params['payment_status_id'] = 1;
@@ -224,7 +210,6 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
       return $params;
     }
     else {
-      CRM_Core_Error::debug_var('result',$result);
       return self::error($result);
     }
   }
@@ -286,8 +271,10 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
       $request['cardExpYear'] = sprintf('%02d', $params['year'] % 100);
     }
     $request['transactionAmount'] = sprintf('%01.2f', CRM_Utils_Rule::cleanMoney($params['amount']));
-    // additional method-specific values
-    // print_r($request); print_r($params); die();
+    // additional method-specific values (none!)
+    //CRM_Core_Error::debug_var('params for conversion', $params);
+    //CRM_Core_Error::debug_var('method', $method);
+    //CRM_Core_Error::debug_var('request', $request);
     return $request;
   }
 
