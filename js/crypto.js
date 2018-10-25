@@ -9,7 +9,7 @@
 cj(function ($) {
   'use strict';
   // move the iframe to the payment information section
-  cj('#firstpay-iframe').appendTo('#payment_information .credit_card_info-group');
+  cj('#firstpay-iframe').appendTo('#payment_information .billing_mode-group');
   // handle messages from the iframe, supporting multiple javascript versions
   if (window.addEventListener) {
     window.addEventListener("message",fapsIframeMessage, false);
@@ -17,7 +17,6 @@ cj(function ($) {
   else {
     window.attachEvent("onmessage", fapsIframeMessage);
   }
-  // cj('#firstpay-iframe').appendTo('#payment_information .credit_card_info-group');
 
 });
 
