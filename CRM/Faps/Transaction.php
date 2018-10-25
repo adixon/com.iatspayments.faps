@@ -15,6 +15,14 @@
 class CRM_Faps_Transaction {
 
   /**
+   * Generate a safe, valid and unique vault key based on an email address.
+   */
+  static function generateVaultKey($email) {
+    $safe_email_key = preg_replace("/[^a-z0-9]/", '', strtolower($email));
+    return $safe_email_key . '!'.md5(uniqid(rand(), TRUE));
+  }
+
+  /**
    * For a recurring contribution, find a reasonable candidate for a template, where possible.
    */
   static function getContributionTemplate($contribution) {
@@ -83,7 +91,9 @@ class CRM_Faps_Transaction {
     $is_recurrence = !empty($original_contribution_id);
     // First try and get the money, using my process_transaction cover function.
     // TODO: convert this into an api job?
+    // CRM_Core_Error::debug_var('process transaction options',$options);
     $result =  self::process_transaction($contribution, $options);
+    // CRM_Core_Error::debug_var('process transaction result',$result);
     $error_message = implode('<br />',$result['errorMessages']);
     $success = (!empty($result['isSuccess']));
     $auth_code = empty($result['data']['authCode']) ? '' : trim($result['data']['authCode']);
@@ -222,15 +232,15 @@ class CRM_Faps_Transaction {
       }
     }
     // Now return the appropriate message. 
-    if (!$success) {
+    if (!$success) { // calling function will restore next schedule contribution date
       return ts('Failed to process recurring contribution id %1: %2', array(1 => $contribution['contribution_recur_id'], 2 => $error_message));
     }
     elseif ($result['contribution_status_id'] == 1) {
-      return ts('Successfully processed recurring contribution in series id %1: %2', array(1 => $contribution['contribution_recur_id'], 2 => $auth_result));
+      return ts('Successfully processed recurring contribution in series id %1: %2', array(1 => $contribution['contribution_recur_id'], 2 => $auth_response));
     }
     else {
       // I'm using ACH or a processor that doesn't complete.
-      return ts('Successfully processed pending recurring contribution in series id %1: %2', array(1 => $contribution['contribution_recur_id'], 2 => $auth_result));
+      return ts('Successfully processed pending recurring contribution in series id %1: %2', array(1 => $contribution['contribution_recur_id'], 2 => $auth_response));
     }
   }
 
@@ -246,7 +256,7 @@ class CRM_Faps_Transaction {
     // require_once "CRM/Faps/Request.php";
     switch ($options['subtype']) {
       case 'ACH':
-        die('Not implemented');
+        $action = 'AchDebitUsingVault';
         // Will not complete.
         $contribution_status_id = 2;
         break;
