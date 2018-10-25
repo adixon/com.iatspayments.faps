@@ -123,7 +123,7 @@ function civicrm_api3_job_Fapsrecurringcontributions($params) {
     $original_contribution_id = empty($contribution_template['original_contribution_id']) ? 0 : $contribution_template['original_contribution_id'];
     $failure_count    = $recurringContribution['failure_count'];
     $paymentProcessor = $fapsProcessors[$payment_processor_id];
-    $subtype = substr($paymentProcessor['class_name'], 13);
+    $subtype = substr($paymentProcessor['class_name'], 12);
     $source = E::ts('iATS Payments FAPS %1 Recurring Contribution ( id = %2 )', [
       1 => $subtype,
       2 => $contribution_recur_id 
@@ -205,39 +205,44 @@ function civicrm_api3_job_Fapsrecurringcontributions($params) {
       }
       continue;
     }
-    else {
-      // Assign basic options.
-      $options = array(
-        'is_email_receipt' => (($receipt_recurring < 2) ? $receipt_recurring : $recurringContribution['is_email_receipt']),
-        'vault' => $recurringContribution['processor_id'],
-        'subtype' => $subtype,
-      );
-      // If our template contribution is a membership payment, make this one also.
-      if ($domemberships && !empty($contribution_template['contribution_id'])) {
-        try {
-          $membership_payment = civicrm_api('MembershipPayment', 'getsingle', array('version' => 3, 'contribution_id' => $contribution_template['contribution_id']));
-          if (!empty($membership_payment['membership_id'])) {
-            $options['membership_id'] = $membership_payment['membership_id'];
-          }
-        }
-        catch (Exception $e) {
-          // ignore, if will fail correctly if there is no membership payment.
+    // if no errors, finish the job ..
+    // Assign basic options.
+    $options = array(
+      'is_email_receipt' => (($receipt_recurring < 2) ? $receipt_recurring : $recurringContribution['is_email_receipt']),
+      'vault' => $recurringContribution['processor_id'],
+      'subtype' => $subtype,
+    );
+    // If our template contribution is a membership payment, make this one also.
+    if ($domemberships && !empty($contribution_template['contribution_id'])) {
+      try {
+        $membership_payment = civicrm_api('MembershipPayment', 'getsingle', array('version' => 3, 'contribution_id' => $contribution_template['contribution_id']));
+        if (!empty($membership_payment['membership_id'])) {
+          $options['membership_id'] = $membership_payment['membership_id'];
         }
       }
-      // So far so, good ... now create the pending contribution, and save its id, advance the next scheduled contribution date
-      // and then try to get the money, and then do one of:
-      // update the contribution to failed, leave as pending for server failure, complete the transaction,
-      // or update a pending ach/eft with it's transaction id.
-      $result = CRM_Faps_Transaction::process_contribution_payment($contribution, $options, $original_contribution_id);
-      if ($email_failure_report && !empty($contribution['iats_reject_code'])) {
-        $failure_report_text .= "\n $result ";
+      catch (Exception $e) {
+        // ignore, if will fail correctly if there is no membership payment.
       }
-      $output[] = $result;
     }
+    // So far so, good ... now use my utility function process_contribution_payment to
+    // create the pending contribution and try to get the money, and then do one of:
+    // update the contribution to failed, leave as pending for server failure, complete the transaction,
+    // or update a pending ach/eft with it's transaction id.
+    // But first: advance the next collection date now so that in case of server failure on return from a payment request I don't try to take money again.
+    // Save the current value to restore in case of payment failure (perhaps ...).
+    $saved_next_sched_contribution_date = $recurringContribution['next_sched_contribution_date'];
+    /* calculate the next collection date, based on the recieve date (note effect of catchup mode, above)  */
+    $next_collection_date = date('Y-m-d H:i:s', strtotime('+'.$recurringContribution['frequency_interval'].' '.$recurringContribution['frequency_unit'], $receive_ts));
+    $contribution_recur_set = array('version' => 3, 'id' => $contribution['contribution_recur_id'], 'next_sched_contribution_date' => $next_collection_date);
+    $result = CRM_Faps_Transaction::process_contribution_payment($contribution, $options, $original_contribution_id);
+    if ($email_failure_report && !empty($contribution['faps_reject_code'])) {
+      $failure_report_text .= "\n $result ";
+    }
+    $output[] = $result;
 
     /* in case of critical failure set the series to pending */
-    if (!empty($contribution['iats_reject_code'])) {
-      switch ($contribution['iats_reject_code']) {
+    if (!empty($contribution['faps_reject_code'])) {
+      switch ($contribution['faps_reject_code']) {
         // Reported lost or stolen.
         case 'REJECT: 25':
           // Do not reprocess!
@@ -254,17 +259,15 @@ function civicrm_api3_job_Fapsrecurringcontributions($params) {
       }
     }
 
-    /* calculate the next collection date, based on the recieve date (note effect of catchup mode, above)  */
-    $next_collection_date = date('Y-m-d H:i:s', strtotime('+'.$recurringContribution['frequency_interval'].' '.$recurringContribution['frequency_unit'], $receive_ts));
-    /* by default, advance to the next schduled date and set the failure count back to 0 */
+    /* by default, just set the failure count back to 0 */
     $contribution_recur_set = array('version' => 3, 'id' => $contribution['contribution_recur_id'], 'failure_count' => '0', 'next_sched_contribution_date' => $next_collection_date);
-    /* special handling for failures */
+    /* special handling for failures: try again at next opportunity if we haven't failed too often */
     if (4 == $contribution['contribution_status_id']) {
       $contribution_recur_set['failure_count'] = $failure_count + 1;
-      /* if it has failed but the failure threshold will not be reached with this failure, leave the next sched contribution date as it was */
+      /* if it has failed and the failure threshold will not be reached with this failure, set the next sched contribution date to what it was */
       if ($contribution_recur_set['failure_count'] < $failure_threshhold) {
         // Should the failure count be reset otherwise? It is not.
-        unset($contribution_recur_set['next_sched_contribution_date']);
+        $contribution_recur_set['next_sched_contribution_date'] = $saved_next_sched_contribution_date;
       }
     }
     civicrm_api('ContributionRecur', 'create', $contribution_recur_set);
@@ -275,7 +278,7 @@ function civicrm_api3_job_Fapsrecurringcontributions($params) {
         'source_contact_id'   => $contact_id,
         'source_record_id' => $contribution['id'],
         'assignee_contact_id' => $contact_id,
-        'subject'       => "Attempted iATS Payments $subtype Recurring Contribution for " . $total_amount,
+        'subject'       => "Attempted iATS FAPS $subtype Recurring Contribution for " . $total_amount,
         'status_id'       => 2,
         'activity_date_time'  => date("YmdHis"),
       )

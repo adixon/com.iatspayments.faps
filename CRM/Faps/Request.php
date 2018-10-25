@@ -58,7 +58,7 @@ class CRM_Faps_Request {
     $this->apiRequest = (empty($options['test']) ? $this->liveUrl : $this->testUrl ) . $this->action;
   }
 
-  public function request($credentials, $request_params) {
+  public function request($credentials, $request_params, $log_failure = TRUE) {
     // CRM_Core_Error::debug_var('Request Params', $request_params);
     // CRM_Core_Error::debug_var('Request URL', $this->apiRequest);
     $data = array_merge($credentials, $request_params);
@@ -106,11 +106,11 @@ class CRM_Faps_Request {
       else {
         // CRM_Core_Error::debug_var('Response', $this->response);
         $this->result = json_decode($this->response, TRUE);
-        /* if (empty($this->result['isSuccess'])) {
-          $this->result['errorMessages'] = $this->result['data']['authResponse'];
-        } */
+        if (empty($this->result['isSuccess'])  && $log_failure) {
+          CRM_Core_Error::debug_var('FAPS transaction failure result', $this->result);
+          // $this->result['errorMessages'] = $this->result['data']['authResponse'];
+        } 
       }
-      // CRM_Core_Error::debug_var('Result', $this->result);
       return $this->result;
     }
     catch (Exception $e){
