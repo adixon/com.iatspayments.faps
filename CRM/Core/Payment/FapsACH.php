@@ -14,8 +14,9 @@ class CRM_Core_Payment_FapsACH extends CRM_Core_Payment_Faps {
   function __construct( $mode, &$paymentProcessor ) {
     $this->_mode             = $mode;
     $this->_paymentProcessor = $paymentProcessor;
-    $this->_processorName    = ts('iATS Payments 1st American Payment System Interface');
-    $this->use_cryptogram   = faps_get_setting('use_cryptogram');
+    $this->_processorName    = ts('iATS Payments 1st American Payment System Interface, ACH');
+    $this->use_cryptogram    = faps_get_setting('use_cryptogram');
+    $this->ach_category_text = faps_get_setting('ach_category_text');
   }
 
   /**
@@ -77,38 +78,77 @@ class CRM_Core_Payment_FapsACH extends CRM_Core_Payment_Faps {
     if ('USD' != $params['currencyID']) {
       return self::error('Invalid currency selection: ' . $params['currencyID']);
     }
-    // We'll use the lower-level Faps Request object for interacting with FAPS
-    // require_once "CRM/Faps/Request.php";
     // flow is special when using hasIsRecur and usingCrypto, I have to use the vault
+    // This is true even if the user has not chosen recur, because I have to choose the crypto iframe type when the page is generated.
     $isRecur = CRM_Utils_Array::value('is_recur', $params) && $params['contributionRecurID'];
     $hasIsRecur = (CRM_Utils_Array::value('frequency_interval', $params) > 0);
     $usingCrypto = !empty($params['cryptogram']);
-    $isCreditCard = (1 == $this->_paymentProcessor['payment_instrument_id']);
     $ipAddress = (function_exists('ip_address') ? ip_address() : $_SERVER['REMOTE_ADDR']);
     $credentials = array(
       'merchantKey' => $this->_paymentProcessor['signature'],
       'processorId' => $this->_paymentProcessor['user_name']
     );
+    // FAPS has a funny thing called a 'category' that needs to be included with any ACH request.
+    // Here, the category is auto-generated using some default settings that can be overridden on the FAPS settings page.
+    $ach_category_text = empty($this->ach_category_text) ? FAPS_DEFAULT_ACH_CATEGORY_TEXT : $this->ach_category_text;
+    $ach_category_exists = FALSE;
+    // check if it's setup
+    $options = array(
+      'action' => 'AchGetCategories',
+      'test' => ($this->_mode == 'test' ? 1 : 0),
+    );
+    $categories_request = new CRM_Faps_Request($options);
+    $request = array('ipAddress' => $ipAddress);
+    $result = $categories_request->request($credentials, $request);
+    unset($categories_request);
+    // CRM_Core_Error::debug_var('categories request result', $result);
+    if (!empty($result['isSuccess']) && !empty($result['data'])) {
+      foreach($result['data'] as $category) {
+        if ($category['achCategoryText'] == $ach_category_text) {
+          $ach_category_exists = TRUE;
+          break;
+        }
+      }
+    }
+    if (!$ach_category_exists) { // set it up!
+      $options = array(
+        'action' => 'AchCreateCategory',
+        'test' => ($this->_mode == 'test' ? 1 : 0),
+      );
+      $categories_request = new CRM_Faps_Request($options);
+      // I've got some non-offensive defaults in here.
+      $request = array(
+        'ipAddress' => $ipAddress,
+        'achCategoryText' => $ach_category_text,
+        'achClassCode' => 'WEB',
+        'achEntry' => 'CiviCRM',
+      );
+      $result = $categories_request->request($credentials, $request);
+      unset($categories_request);
+      // I'm being a bit naive and assuming it succeeds.
+    }
+    // store it in params for my convert request call(s) later
+    $params['ach_category_text'] = $ach_category_text;
+
     $vault_key = $vault_id = '';
     if (($hasIsRecur  && $usingCrypto) || $isRecur) {
       // Store the params in a vault before attempting payment
       $options = array(
-        'action' => ($isCreditCard ? 'VaultCreateCCRecord' : 'VaultCreateAchRecord'),
+        'action' => 'VaultCreateAchRecord',
         'test' => ($this->_mode == 'test' ? 1 : 0),
       );
       $vault_request = new CRM_Faps_Request($options);
       $request = $this->convertParams($params, $options['action']);
       // auto-generate a compliant vault key  
-      $safe_email_key = preg_replace("/[^a-z0-9]/", '', strtolower($request['ownerEmail']));
-      $vault_key = $safe_email_key . '!'.md5(uniqid(rand(), TRUE));
+      $vault_key = CRM_Faps_Transaction::generateVaultKey($request['ownerEmail']);
       $request['vaultKey'] = $vault_key;
       $request['ipAddress'] = $ipAddress;
       // Make the request.
-      // CRM_Core_Error::debug_var('vault request', $request);
+      //CRM_Core_Error::debug_var('vault request', $request);
       $result = $vault_request->request($credentials, $request);
       // unset the cryptogram param, we can't use it again and don't want to return it anyway.
       unset($params['cryptogram']);
-      // CRM_Core_Error::debug_var('vault result', $result);
+      //CRM_Core_Error::debug_var('vault result', $result);
       if (!empty($result['isSuccess'])) {
         $vault_id = $result['data']['id'];
         if ($isRecur) {
@@ -118,18 +158,17 @@ class CRM_Core_Payment_FapsACH extends CRM_Core_Payment_Faps {
         }
       }
       else {
-        CRM_Core_Error::debug_var('vault result', $result);
         return self::error($result);
       }
       // now set the options for taking the money
       $options = array(
-        'action' => ($isCreditCard ? 'SaleUsingVault' : 'AchDebitUsingVault'),
+        'action' => 'AchDebitUsingVault',
         'test' => ($this->_mode == 'test' ? 1 : 0),
       );
     }
     else { // set the simple sale option for taking the money
       $options = array(
-        'action' => ($isCreditCard ? 'Sale' : 'AchDebit'),
+        'action' => 'AchDebit',
         'test' => ($this->_mode == 'test' ? 1 : 0),
       );
     }
@@ -156,26 +195,13 @@ class CRM_Core_Payment_FapsACH extends CRM_Core_Payment_Faps {
       return $params;
     }
     else {
-      CRM_Core_Error::debug_var('result',$result);
       return self::error($result);
     }
   }
 
   /**
-   * Todo?
-   *
-   * @param array $params name value pair of contribution data
-   *
-   * @return void
-   * @access public
-   *
-   */
-  function doTransferCheckout( &$params, $component ) {
-    CRM_Core_Error::fatal(ts('This function is not implemented'));
-  }
-
-  /**
    * Convert the values in the civicrm params to the request array with keys as expected by FAPS
+   * ACH has different fields from credit card.
    *
    * @param array $params
    * @param string $action
@@ -192,10 +218,7 @@ class CRM_Core_Payment_FapsACH extends CRM_Core_Payment_Faps {
       'ownerZip' => 'postal_code',
       'ownerCountry' => 'country',
       'orderId' => 'invoiceID',
-      'cardNumber' => 'credit_card_number',
-//      'cardtype' => 'credit_card_type',
-      'cVV' => 'cvv2',
-      'creditCardCryptogram' => 'cryptogram',
+      'achCryptogram' => 'cryptogram',
     );
     foreach ($convert as $r => $p) {
       if (isset($params[$p])) {
@@ -211,114 +234,9 @@ class CRM_Core_Payment_FapsACH extends CRM_Core_Payment_Faps {
       }
     }
     $request['ownerName'] = $params['billing_first_name'].' '.$params['billing_last_name'];
-    if (!empty($params['month'])) {
-      $request['cardExpMonth'] = sprintf('%02d', $params['month']);
-    }
-    if (!empty($params['year'])) {
-      $request['cardExpYear'] = sprintf('%02d', $params['year'] % 100);
-    }
     $request['transactionAmount'] = sprintf('%01.2f', CRM_Utils_Rule::cleanMoney($params['amount']));
-    // additional method-specific values
-    // print_r($request); print_r($params); die();
+    $request['categoryText'] = $params['ach_category_text'];
     return $request;
   }
 
-
-  /**
-   *
-   */
-  public function &error($error = NULL) {
-    $e = CRM_Core_Error::singleton();
-    if (is_object($error)) {
-      $e->push($error->getResponseCode(),
-        0, NULL,
-        $error->getMessage()
-      );
-    }
-    elseif ($error && is_numeric($error)) {
-      $e->push($error,
-        0, NULL,
-        $this->errorString($error)
-      );
-    }
-    elseif (is_array($error)) {
-      $error_string = '';
-      if ($error['isError']) {
-        foreach($error['errorMessages'] as $message) {
-          $error_string .= $message;
-        }
-      }
-      if ($error['validationHasFailed']) {
-        foreach($error['validationFailures'] as $message) {
-          $error_string .= 'Validation failure for '.$message['key'].': '.$message['message'];
-        }
-      }
-      $e->push(9002,
-        0, NULL,
-        $error_string
-      );
-    }
-    else {
-      $e->push(9001, 0, NULL, "Unknown System Error.");
-    }
-    return $e;
-  }
-
-  /*
-   * Update the recurring contribution record.
-   *
-   * Implemented as a function so I can do some cleanup and implement
-   * the ability to set a future start date for recurring contributions.
-   * This functionality will apply to back-end and front-end,
-   * As enabled when configured via the iATS admin settings.
-   *
-   * This function will alter the recurring schedule as an intended side effect.
-   * and return the modified the params.
-   */
-  protected function updateRecurring($params, $update) {
-    // If the recurring record already exists, let's fix the next contribution and start dates,
-    // in case core isn't paying attention.
-    // We also set the schedule to 'in-progress' (even for ACH/EFT when the first one hasn't been verified),
-    // because we want the recurring job to run for this schedule.
-    if (!empty($params['contributionRecurID'])) {
-      $recur_id = $params['contributionRecurID'];
-      $recur_update = array(
-        'id' => $recur_id,
-        'contribution_status_id' => 'In Progress',
-        'processor_id' => $update['processor_id'],
-      );
-      // use the receive date to set the next sched contribution date.
-      // By default, it's empty, unless we've got a future start date.
-      if (empty($update['receive_date'])) {
-        $next = strtotime('+' . $params['frequency_interval'] . ' ' . $params['frequency_unit']);
-        $recur_update['next_sched_contribution_date'] = date('Ymd', $next) . '030000';
-      }
-      else {
-        $recur_update['start_date'] = $recur_update['next_sched_contribution_date'] = $update['receive_date'];
-        // If I've got a monthly schedule, let's set the cycle_day for niceness
-        if ('month' == $params['frequency_interval']) {
-          $recur_update['cycle_day'] = date('j', strtotime($recur_update['start_date']));
-        }
-      }
-      try {
-        $result = civicrm_api3('ContributionRecur', 'create', $recur_update);
-        return $result;
-      }
-      catch (CiviCRM_API3_Exception $e) {
-        // Not a critical error, just log and continue.
-        $error = $e->getMessage();
-        Civi::log()->info('Unexpected error updating the next scheduled contribution date for id {id}: {error}', array('id' => $recur_id, 'error' => $error));
-      }
-    }
-    else {
-      Civi::log()->info('Unexpectedly unable to update the next scheduled contribution date, missing id.');
-    }
-    return false;
-  }
-
-
-
 }
-
-
-
