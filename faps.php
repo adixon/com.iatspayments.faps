@@ -3,6 +3,8 @@
 require_once 'faps.civix.php';
 use CRM_Faps_ExtensionUtil as E;
 
+define('FAPS_DEFAULT_ACH_CATEGORY_TEXT','CiviCRM ACH');
+
 /**
  * Implements hook_civicrm_config().
  *
@@ -271,19 +273,33 @@ function faps_civicrm_buildForm_Contribution(&$form) {
   }
   // print_r($faps_processors); die();
   // die('test');
-  $faps_processor = reset($faps_processors);
+  if (empty($form->_submitValues['payment_processor_id'])) {
+    if (empty($form->_defaults['payment_processor_id'])) {
+      $payment_processor_ids = array_keys($faps_processors);
+      $payment_processor_id = reset($payment_processor_ids);
+    }
+    else {
+      $payment_processor_id = $form->_defaults['payment_processor_id'];
+    }
+  }
+  else {
+    $payment_processor_id = $form->_submitValues['payment_processor_id'];
+  }
+  $faps_processor = $faps_processors[$payment_processor_id];
   $is_cc = ($faps_processor['payment_instrument_id'] == 1);
   $is_test = ($faps_processor['is_test'] == 1);
   $has_is_recur = $form->elementExists('is_recur');
   if (faps_get_setting('use_cryptogram')) {
+    // CRM_Core_Error::debug_var('generate cryptogram html', $faps_processors);
+    // CRM_Core_Error::debug_var('form class', $form_class);
+    // CRM_Core_Error::debug_var('form', $form);
     $credentials = array(
       'transcenterId' => $faps_processor['password'],
-  //    'merchantKey' => $faps_processor['signature'],
       'processorId' => $faps_processor['user_name']
     );
     $faps_domain = parse_url($faps_processor['url_site'], PHP_URL_HOST);
     $cryptojs = 'https://'.$faps_domain.'/secure/PaymentHostedForm/Scripts/firstpay/firstpay.cryptogram.js';
-    $transaction_type = $has_is_recur ? ($is_cc ? 'Auth' : 'AchVault') : ($is_cc ? 'Sale' : 'AchDebit');
+    $transaction_type = $has_is_recur ? ($is_cc ? 'Auth' : 'Vault') : ($is_cc ? 'Sale' : 'AchDebit');
     $iframe_src = 'https://'.$faps_domain. '/secure/PaymentHostedForm/v3/' .($is_cc ? 'CreditCard' : 'Ach');
     $iframe_style = 'width: 100%;'; // height: 100%;';
     $markup = sprintf("<iframe id=\"firstpay-iframe\" src=\"%s\" style=\"%s\" data-transcenter-id=\"%s\" data-processor-id=\"%s\" data-transaction-type=\"%s\" data-manual-submit=\"false\"></iframe>\n", $iframe_src, $iframe_style,$credentials['transcenterId'], $credentials['processorId'], $transaction_type);
