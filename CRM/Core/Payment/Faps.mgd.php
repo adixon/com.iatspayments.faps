@@ -30,7 +30,7 @@ return array(
           'payment_instrument_id' => 1,
           'is_active' => 1,
         ),
-    )
+    ),
    1 =>
     array(
       'name' => 'iATS Payment FAPS ACH Processor',
