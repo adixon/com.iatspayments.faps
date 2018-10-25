@@ -36,6 +36,12 @@ class CRM_Faps_Form_Settings extends CRM_Core_Form {
       'use_cryptogram',
       ts('Enable use of cryptogram (experimental, not working)')
     );
+    
+    $this->add(
+      'text',
+      'ach_category_text',
+      ts('ACH Category Text')
+    );
 
     $this->add(
       'checkbox',
@@ -67,6 +73,9 @@ class CRM_Faps_Form_Settings extends CRM_Core_Form {
     $defaults = (empty($result)) ? array() : $result;
     if (empty($defaults['recurring_failure_threshhold'])) {
       $defaults['recurring_failure_threshhold'] = 3;
+    }
+    if (empty($defaults['ach_category_text'])) {
+      $defaults['ach_category_text'] = FAPS_DEFAULT_ACH_CATEGORY_TEXT;
     }
     $this->setDefaults($defaults);
 
