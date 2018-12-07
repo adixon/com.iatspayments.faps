@@ -41,7 +41,7 @@ class Faps_Transaction implements JsonSerializable {
  */
 class CRM_Faps_Request {
 
-
+  const DEBUG = false;
   public $result = array();
   public $status = "";
   private $liveUrl = "https://secure.1stpaygateway.net/secure/RestGW/Gateway/Transaction/";
@@ -59,8 +59,12 @@ class CRM_Faps_Request {
   }
 
   public function request($credentials, $request_params, $log_failure = TRUE) {
-    // CRM_Core_Error::debug_var('Request Params', $request_params);
-    // CRM_Core_Error::debug_var('Request URL', $this->apiRequest);
+    if (self::DEBUG) {
+      CRM_Core_Error::debug_var('Credentials', $credentials);
+      CRM_Core_Error::debug_var('Request Params', $request_params);
+      CRM_Core_Error::debug_var('Transaction Type', $this->action);
+      CRM_Core_Error::debug_var('Request URL', $this->apiRequest);
+    }
     $data = array_merge($credentials, $request_params);
     try {
       if ($data == NULL) {
@@ -82,6 +86,9 @@ class CRM_Faps_Request {
       ));
       curl_setopt($curl_handle, CURLOPT_SSL_VERIFYPEER, FALSE);
       $this->response = curl_exec($curl_handle);
+      if (self::DEBUG) {
+        CRM_Core_Error::debug_var('JSON Response', $this->response);
+      }
       $this->status = curl_getinfo($curl_handle,CURLINFO_HTTP_CODE);
       if (connection_aborted()) {
         // handle aborted requests that PHP can detect, returning a result that indicates POST was aborted.
