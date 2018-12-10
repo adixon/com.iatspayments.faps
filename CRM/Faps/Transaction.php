@@ -254,33 +254,37 @@ class CRM_Faps_Transaction {
    */
   function process_transaction($contribution, $options) {
     // require_once "CRM/Faps/Request.php";
+    $paymentProcessor = civicrm_api3('PaymentProcessor', 'getsingle', ['return' => ['password','user_name','signature'], 'id' => $contribution['payment_processor'], 'is_test' => $contribution['is_test']]);
+    $credentials = array(
+      'merchantKey' => $paymentProcessor['signature'],
+      'processorId' => $paymentProcessor['user_name']
+    );
+    $request = array(
+      'ipAddress' => (function_exists('ip_address') ? ip_address() : $_SERVER['REMOTE_ADDR']),
+    );
     switch ($options['subtype']) {
       case 'ACH':
         $action = 'AchDebitUsingVault';
-        // Will not complete.
-        $contribution_status_id = 2;
+        // Will (not?) complete.
+        $contribution_status_id = 1;
+        // store it in request 
+        $request['categoryText'] = CRM_Core_Payment_FapsACH::getCategoryText($credentials, $contribution['is_test']);
         break;
       default:
         $action = 'SaleUsingVault';
         $contribution_status_id = 1;
         break;
     }
-    $paymentProcessor = civicrm_api3('PaymentProcessor', 'getsingle', ['return' => ['password','user_name','signature'], 'id' => $contribution['payment_processor'], 'is_test' => $contribution['is_test']]);
-    $credentials = array(
-      'merchantKey' => $paymentProcessor['signature'],
-      'processorId' => $paymentProcessor['user_name']
-    );
     $service_params = array('action' => $action);
     $faps = new CRM_Faps_Request($service_params);
     // Build the request array.
     // CRM_Core_Error::debug_var('options', $options);
     list($vaultKey,$vaultId) = explode(':', $options['vault'], 2);
-    $request = array(
+    $request = $request + array(
       'vaultKey' => $vaultKey,
       'vaultId' => $vaultId,
       'orderId' => $contribution['invoice_id'],
       'transactionAmount' => sprintf('%01.2f', CRM_Utils_Rule::cleanMoney($contribution['total_amount'])),
-      'ipAddress' => (function_exists('ip_address') ? ip_address() : $_SERVER['REMOTE_ADDR']),
     );
     // remove the customerIPAddress if it's non-routable, to prevent
     // being locked out due to velocity checks
