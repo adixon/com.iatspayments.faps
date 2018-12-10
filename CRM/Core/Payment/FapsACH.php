@@ -16,7 +16,6 @@ class CRM_Core_Payment_FapsACH extends CRM_Core_Payment_Faps {
     $this->_paymentProcessor = $paymentProcessor;
     $this->_processorName    = ts('iATS Payments 1st American Payment System Interface, ACH');
     $this->use_cryptogram    = faps_get_setting('use_cryptogram');
-    $this->ach_category_text = faps_get_setting('ach_category_text');
   }
 
   /**
@@ -88,54 +87,18 @@ class CRM_Core_Payment_FapsACH extends CRM_Core_Payment_Faps {
       'merchantKey' => $this->_paymentProcessor['signature'],
       'processorId' => $this->_paymentProcessor['user_name']
     );
+    $is_test = ($this->_mode == 'test' ? 1 : 0); 
     // FAPS has a funny thing called a 'category' that needs to be included with any ACH request.
-    // Here, the category is auto-generated using some default settings that can be overridden on the FAPS settings page.
-    $ach_category_text = empty($this->ach_category_text) ? FAPS_DEFAULT_ACH_CATEGORY_TEXT : $this->ach_category_text;
-    $ach_category_exists = FALSE;
-    // check if it's setup
-    $options = array(
-      'action' => 'AchGetCategories',
-      'test' => ($this->_mode == 'test' ? 1 : 0),
-    );
-    $categories_request = new CRM_Faps_Request($options);
-    $request = array('ipAddress' => $ipAddress);
-    $result = $categories_request->request($credentials, $request);
-    unset($categories_request);
-    // CRM_Core_Error::debug_var('categories request result', $result);
-    if (!empty($result['isSuccess']) && !empty($result['data'])) {
-      foreach($result['data'] as $category) {
-        if ($category['achCategoryText'] == $ach_category_text) {
-          $ach_category_exists = TRUE;
-          break;
-        }
-      }
-    }
-    if (!$ach_category_exists) { // set it up!
-      $options = array(
-        'action' => 'AchCreateCategory',
-        'test' => ($this->_mode == 'test' ? 1 : 0),
-      );
-      $categories_request = new CRM_Faps_Request($options);
-      // I've got some non-offensive defaults in here.
-      $request = array(
-        'ipAddress' => $ipAddress,
-        'achCategoryText' => $ach_category_text,
-        'achClassCode' => 'WEB',
-        'achEntry' => 'CiviCRM',
-      );
-      $result = $categories_request->request($credentials, $request);
-      unset($categories_request);
-      // I'm being a bit naive and assuming it succeeds.
-    }
-    // store it in params for my convert request call(s) later
-    $params['ach_category_text'] = $ach_category_text;
+    // The category is auto-generated in the getCategoryText function, using some default settings that can be overridden on the FAPS settings page.
+    // Store it in params, will be used by my convert request call(s) later
+    $params['ach_category_text'] = self::getCategoryText($credentials, $is_test, $ipAddress);
 
     $vault_key = $vault_id = '';
     if (($hasIsRecur  && $usingCrypto) || $isRecur) {
       // Store the params in a vault before attempting payment
       $options = array(
         'action' => 'VaultCreateAchRecord',
-        'test' => ($this->_mode == 'test' ? 1 : 0),
+        'test' => $is_test,
       );
       $vault_request = new CRM_Faps_Request($options);
       $request = $this->convertParams($params, $options['action']);
@@ -197,6 +160,64 @@ class CRM_Core_Payment_FapsACH extends CRM_Core_Payment_Faps {
     else {
       return self::error($result);
     }
+  }
+
+  /**
+   * Get the category text. 
+   * Before I return it, check that the category text exists, and create it if it doesn't.
+   *
+   * FAPS has a funny thing called a 'category' that needs to be included with any ACH request.
+   * This function will test if a category text string exists and create it if it doesn't
+   *
+   * @param string $ach_category_text
+   * @param array $credentials
+   *
+   * @return none
+   */
+  public static function getCategoryText($credentials, $is_test, $ipAddress = NULL) {
+    static $ach_category_text_saved;
+    if (!empty($ach_category_text_saved)) {
+      return $ach_category_text_saved;
+    } 
+    $ach_category_text = faps_get_setting('ach_category_text');
+    $ach_category_text = empty($ach_category_text) ? FAPS_DEFAULT_ACH_CATEGORY_TEXT : $ach_category_text;
+    $ach_category_exists = FALSE;
+    // check if it's setup
+    $options = array(
+      'action' => 'AchGetCategories',
+      'test' => $is_test,
+    );
+    $categories_request = new CRM_Faps_Request($options);
+    $request = empty($ipAddress) ? array() : array('ipAddress' => $ipAddress);
+    $result = $categories_request->request($credentials, $request);
+    // CRM_Core_Error::debug_var('categories request result', $result);
+    if (!empty($result['isSuccess']) && !empty($result['data'])) {
+      foreach($result['data'] as $category) {
+        if ($category['achCategoryText'] == $ach_category_text) {
+          $ach_category_exists = TRUE;
+          break;
+        }
+      }
+    }
+    if (!$ach_category_exists) { // set it up!
+      $options = array(
+        'action' => 'AchCreateCategory',
+        'test' => $is_test,
+      );
+      $categories_request = new CRM_Faps_Request($options);
+      // I've got some non-offensive defaults in here.
+      $request = array(
+        'achCategoryText' => $ach_category_text,
+        'achClassCode' => 'WEB',
+        'achEntry' => 'CiviCRM',
+      );
+      if (!empty($ipAddress)) {
+        $request['ipAddress'] = $ipAddress;
+      }
+      $result = $categories_request->request($credentials, $request);
+      // I'm being a bit naive and assuming it succeeds.
+    }
+    return $ach_category_text_saved = $ach_category_text;
   }
 
   /**
