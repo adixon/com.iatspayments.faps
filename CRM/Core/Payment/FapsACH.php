@@ -150,11 +150,23 @@ class CRM_Core_Payment_FapsACH extends CRM_Core_Payment_Faps {
     $success = (!empty($result['isSuccess']));
     if ($success) {
       // put the old return param in just to be sure
-      $params['contribution_status_id'] = 1;
+      $params['contribution_status_id'] = 'Pending';
       // For versions >= 4.6.6, the proper key.
-      $params['payment_status_id'] = 1;
-      $params['trxn_id'] = trim($result['data']['authCode']) . ':' . trim($result['data']['referenceNumber']);
+      $params['payment_status_id'] = 'Pending';
+      $params['trxn_id'] = trim($result['data']['referenceNumber']).':'.time();
       $params['gross_amount'] = $params['amount'];
+      // Core assumes that a pending result will have no transaction id, but we have a useful one.
+      if (!empty($params['contributionID'])) {
+        $contribution_update = array('id' => $params['contributionID'], 'trxn_id' => $params['trxn_id']);
+        try {
+          $result = civicrm_api3('Contribution', 'create', $contribution_update);
+        }
+        catch (CiviCRM_API3_Exception $e) {
+          // Not a critical error, just log and continue.
+          $error = $e->getMessage();
+          Civi::log()->info('Unexpected error adding the trxn_id for contribution id {id}: {error}', array('id' => $recur_id, 'error' => $error));
+        }
+      }
       return $params;
     }
     else {
