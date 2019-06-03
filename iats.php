@@ -173,18 +173,18 @@ function iats_get_setting($key = NULL) {
 }
 
 /**
- * Internal utility function: return the id's of any FAPS processors matching various conditions.
+ * Internal utility function: return the id's of any iATS processors matching various conditions.
  *
  * Processors: an array of payment processors indexed by id to filter by,
  *             or if NULL, it searches through all
- * subtype: the FAPS service class name subtype
+ * subtype: the service class name type or subtype
  * params: an array of additional params to pass to the api call.
  */
 function iats_civicrm_processors($processors, $subtype = '', $params = array()) {
   $list = array();
   $match_all = ('*' == $subtype) ? TRUE : FALSE;
   if (!$match_all) {
-    $params['class_name'] = 'Payment_Faps' . $subtype;
+    $params['class_name'] = 'Payment_' . $subtype;
   }
 
   // Set the domain id if not passed in.
@@ -251,7 +251,7 @@ function iats_civicrm_buildForm_Contribution(&$form) {
   if ($form_class == 'CRM_Financial_Form_Payment') {
     // We're on CRM_Financial_Form_Payment, we've got just one payment processor
     $id = $form->_paymentProcessor['id'];
-    $iats_processors = iats_civicrm_processors(array($id => $form->_paymentProcessor), '*');
+    $iats_processors = iats_civicrm_processors(array($id => $form->_paymentProcessor), 'FAPS');
   }
   else {
     // Handle the event and contribution page forms
@@ -266,7 +266,7 @@ function iats_civicrm_buildForm_Contribution(&$form) {
     else {
       $form_payment_processors = $form->_paymentProcessors;
     }
-    $iats_processors = iats_civicrm_processors($form_payment_processors, '*');
+    $iats_processors = iats_civicrm_processors($form_payment_processors, 'FAPS');
   }
   if (empty($iats_processors)) {
     return;

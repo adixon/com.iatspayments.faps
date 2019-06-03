@@ -32,7 +32,7 @@ function civicrm_api3_job_fapsachverify($params) {
 
   /* get a list of all active/non-test iATS FAPS payment processors of type ACH, quit if there are none */
   /* We'll make sure they are unique from iATS FAPS point of view (i.e. distinct processorId = username) */
-  $ach_processors = faps_civicrm_processors(array(), 'ACH', array('is_active' => 1, 'is_test' => 0))
+  $ach_processors = iats_civicrm_processors(array(), 'FAPSACH', array('is_active' => 1, 'is_test' => 0))
   if (empty($ach_processors)) {
     return;
   }
