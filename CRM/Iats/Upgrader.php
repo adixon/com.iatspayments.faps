@@ -1,10 +1,10 @@
 <?php
-use CRM_Faps_ExtensionUtil as E;
+use CRM_Iats_ExtensionUtil as E;
 
 /**
  * Collection of upgrade steps.
  */
-class CRM_Faps_Upgrader extends CRM_Faps_Upgrader_Base {
+class CRM_Iats_Upgrader extends CRM_Iats_Upgrader_Base {
 
    /*
     * Get the revision of this extension

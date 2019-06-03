@@ -100,10 +100,10 @@ class CRM_Core_Payment_FapsACH extends CRM_Core_Payment_Faps {
         'action' => 'VaultCreateAchRecord',
         'test' => $is_test,
       );
-      $vault_request = new CRM_Faps_Request($options);
+      $vault_request = new CRM_Iats_FapsRequest($options);
       $request = $this->convertParams($params, $options['action']);
       // auto-generate a compliant vault key  
-      $vault_key = CRM_Faps_Transaction::generateVaultKey($request['ownerEmail']);
+      $vault_key = CRM_Iats_Transaction::generateVaultKey($request['ownerEmail']);
       $request['vaultKey'] = $vault_key;
       $request['ipAddress'] = $ipAddress;
       // Make the request.
@@ -136,7 +136,7 @@ class CRM_Core_Payment_FapsACH extends CRM_Core_Payment_Faps {
       );
     }
     // now take the money
-    $payment_request = new CRM_Faps_Request($options);
+    $payment_request = new CRM_Iats_FapsRequest($options);
     $request = $this->convertParams($params, $options['action']);
     $request['ipAddress'] = $ipAddress;
     if ($vault_id) {
@@ -199,7 +199,7 @@ class CRM_Core_Payment_FapsACH extends CRM_Core_Payment_Faps {
       'action' => 'AchGetCategories',
       'test' => $is_test,
     );
-    $categories_request = new CRM_Faps_Request($options);
+    $categories_request = new CRM_Iats_FapsRequest($options);
     $request = empty($ipAddress) ? array() : array('ipAddress' => $ipAddress);
     $result = $categories_request->request($credentials, $request);
     // CRM_Core_Error::debug_var('categories request result', $result);
@@ -216,7 +216,7 @@ class CRM_Core_Payment_FapsACH extends CRM_Core_Payment_Faps {
         'action' => 'AchCreateCategory',
         'test' => $is_test,
       );
-      $categories_request = new CRM_Faps_Request($options);
+      $categories_request = new CRM_Iats_FapsRequest($options);
       // I've got some non-offensive defaults in here.
       $request = array(
         'achCategoryText' => $ach_category_text,

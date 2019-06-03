@@ -13,7 +13,7 @@
  * TODO: provide logging options for the request, exception and response
  *
  * Expected usage:
- * $faps = new Faps_Request($options)
+ * $faps = new CRM_Iats_FapsRequest($options)
  * where options usually include
  *   action: one of the API actions
  *   category: 'Transactions', 'Ach', or 'Vault'
@@ -22,9 +22,14 @@
  * 
  **/
 
+/**
+ * Define a utility class required by FapsRequest 
+ * Should likely be in a namespace.
+ */
+
 class Faps_Transaction implements JsonSerializable {
   /**
-  * Transaction class: Ties into the PHP JSON Functions & makes them easily available to the Faps_Request class.
+  * Transaction class: Ties into the PHP JSON Functions & makes them easily available to the CRM_Iats_FapsRequest class.
   * Using the class like so: $a = json_encode(new Faps_Transaction($txnarray), JSON_PRETTY_PRINT)
   * Will produce json data that the gateway should understand.
   */
@@ -39,7 +44,7 @@ class Faps_Transaction implements JsonSerializable {
 /**
  *
  */
-class CRM_Faps_Request {
+class CRM_Iats_FapsRequest {
 
   const DEBUG = false;
   public $result = array();

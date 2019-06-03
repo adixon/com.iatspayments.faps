@@ -1,12 +1,12 @@
 <?php
 
 // AUTO-GENERATED FILE -- Civix may overwrite any changes made to this file
-use CRM_Faps_ExtensionUtil as E;
+use CRM_Iats_ExtensionUtil as E;
 
 /**
  * Base class which provides helpers to execute upgrade logic
  */
-class CRM_Faps_Upgrader_Base {
+class CRM_Iats_Upgrader_Base {
 
   /**
    * @var varies, subclass of this
@@ -45,8 +45,8 @@ class CRM_Faps_Upgrader_Base {
   static public function instance() {
     if (!self::$instance) {
       // FIXME auto-generate
-      self::$instance = new CRM_Faps_Upgrader(
-        'com.iatspayments.faps',
+      self::$instance = new CRM_Iats_Upgrader(
+        'com.iatspayments.civicrm',
         realpath(__DIR__ . '/../../../')
       );
     }
@@ -60,7 +60,7 @@ class CRM_Faps_Upgrader_Base {
    * task-context; otherwise, this will be non-reentrant.
    *
    * @code
-   * CRM_Faps_Upgrader_Base::_queueAdapter($ctx, 'methodName', 'arg1', 'arg2');
+   * CRM_Iats_Upgrader_Base::_queueAdapter($ctx, 'methodName', 'arg1', 'arg2');
    * @endcode
    */
   static public function _queueAdapter() {

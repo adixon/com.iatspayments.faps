@@ -2,7 +2,7 @@
 <menu>
   <item>
     <path>civicrm/admin/contribute/faps-settings</path>
-    <page_callback>CRM_Faps_Form_Settings</page_callback>
+    <page_callback>CRM_Iats_Form_Settings</page_callback>
     <title>Settings</title>
     <access_arguments>access CiviCRM</access_arguments>
   </item>

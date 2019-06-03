@@ -1,5 +1,5 @@
 <?php
-use CRM_Faps_ExtensionUtil as E;
+use CRM_Iats_ExtensionUtil as E;
 
 /**
  * FapsTransaction.Get API specification (optional)
@@ -30,7 +30,7 @@ function civicrm_api3_faps_transaction_Get($params) {
     'processorId' => $paymentProcessor['user_name']
   );
   $service_params = array('action' => 'Query');
-  $faps = new CRM_Faps_Request($service_params);
+  $faps = new CRM_Iats_FapsRequest($service_params);
   $request = array(
     'referenceNumber' => '182668',
     // 'transactionId' => $params['transactionId'],

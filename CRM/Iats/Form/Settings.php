@@ -1,13 +1,13 @@
 <?php
 
-use CRM_Faps_ExtensionUtil as E;
+use CRM_Iats_ExtensionUtil as E;
 
 /**
  * Form controller class
  *
  * @see https://wiki.civicrm.org/confluence/display/CRMDOC/QuickForm+Reference
  */
-class CRM_Faps_Form_Settings extends CRM_Core_Form {
+class CRM_Iats_Form_Settings extends CRM_Core_Form {
   public function buildQuickForm() {
 
     // Add form elements.

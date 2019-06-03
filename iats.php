@@ -1,7 +1,7 @@
 <?php
 
-require_once 'faps.civix.php';
-use CRM_Faps_ExtensionUtil as E;
+require_once 'iats.civix.php';
+use CRM_Iats_ExtensionUtil as E;
 
 define('FAPS_DEFAULT_ACH_CATEGORY_TEXT','CiviCRM ACH');
 
@@ -10,8 +10,8 @@ define('FAPS_DEFAULT_ACH_CATEGORY_TEXT','CiviCRM ACH');
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_config
  */
-function faps_civicrm_config(&$config) {
-  _faps_civix_civicrm_config($config);
+function iats_civicrm_config(&$config) {
+  _iats_civix_civicrm_config($config);
 }
 
 /**
@@ -19,8 +19,8 @@ function faps_civicrm_config(&$config) {
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_xmlMenu
  */
-function faps_civicrm_xmlMenu(&$files) {
-  _faps_civix_civicrm_xmlMenu($files);
+function iats_civicrm_xmlMenu(&$files) {
+  _iats_civix_civicrm_xmlMenu($files);
 }
 
 /**
@@ -28,8 +28,8 @@ function faps_civicrm_xmlMenu(&$files) {
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_install
  */
-function faps_civicrm_install() {
-  _faps_civix_civicrm_install();
+function iats_civicrm_install() {
+  _iats_civix_civicrm_install();
 }
 
 /**
@@ -37,8 +37,8 @@ function faps_civicrm_install() {
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_postInstall
  */
-function faps_civicrm_postInstall() {
-  _faps_civix_civicrm_postInstall();
+function iats_civicrm_postInstall() {
+  _iats_civix_civicrm_postInstall();
 }
 
 /**
@@ -46,8 +46,8 @@ function faps_civicrm_postInstall() {
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_uninstall
  */
-function faps_civicrm_uninstall() {
-  _faps_civix_civicrm_uninstall();
+function iats_civicrm_uninstall() {
+  _iats_civix_civicrm_uninstall();
 }
 
 /**
@@ -55,8 +55,8 @@ function faps_civicrm_uninstall() {
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_enable
  */
-function faps_civicrm_enable() {
-  _faps_civix_civicrm_enable();
+function iats_civicrm_enable() {
+  _iats_civix_civicrm_enable();
 }
 
 /**
@@ -64,8 +64,8 @@ function faps_civicrm_enable() {
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_disable
  */
-function faps_civicrm_disable() {
-  _faps_civix_civicrm_disable();
+function iats_civicrm_disable() {
+  _iats_civix_civicrm_disable();
 }
 
 /**
@@ -73,8 +73,8 @@ function faps_civicrm_disable() {
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_upgrade
  */
-function faps_civicrm_upgrade($op, CRM_Queue_Queue $queue = NULL) {
-  return _faps_civix_civicrm_upgrade($op, $queue);
+function iats_civicrm_upgrade($op, CRM_Queue_Queue $queue = NULL) {
+  return _iats_civix_civicrm_upgrade($op, $queue);
 }
 
 /**
@@ -85,8 +85,8 @@ function faps_civicrm_upgrade($op, CRM_Queue_Queue $queue = NULL) {
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_managed
  */
-function faps_civicrm_managed(&$entities) {
-  _faps_civix_civicrm_managed($entities);
+function iats_civicrm_managed(&$entities) {
+  _iats_civix_civicrm_managed($entities);
 }
 
 /**
@@ -98,8 +98,8 @@ function faps_civicrm_managed(&$entities) {
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_caseTypes
  */
-function faps_civicrm_caseTypes(&$caseTypes) {
-  _faps_civix_civicrm_caseTypes($caseTypes);
+function iats_civicrm_caseTypes(&$caseTypes) {
+  _iats_civix_civicrm_caseTypes($caseTypes);
 }
 
 /**
@@ -112,8 +112,8 @@ function faps_civicrm_caseTypes(&$caseTypes) {
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_angularModules
  */
-function faps_civicrm_angularModules(&$angularModules) {
-  _faps_civix_civicrm_angularModules($angularModules);
+function iats_civicrm_angularModules(&$angularModules) {
+  _iats_civix_civicrm_angularModules($angularModules);
 }
 
 /**
@@ -121,8 +121,8 @@ function faps_civicrm_angularModules(&$angularModules) {
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_alterSettingsFolders
  */
-function faps_civicrm_alterSettingsFolders(&$metaDataFolders = NULL) {
-  _faps_civix_civicrm_alterSettingsFolders($metaDataFolders);
+function iats_civicrm_alterSettingsFolders(&$metaDataFolders = NULL) {
+  _iats_civix_civicrm_alterSettingsFolders($metaDataFolders);
 }
 
 /**
@@ -132,8 +132,8 @@ function faps_civicrm_alterSettingsFolders(&$metaDataFolders = NULL) {
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_entityTypes
  */
-function faps_civicrm_entityTypes(&$entityTypes) {
-  _faps_civix_civicrm_entityTypes($entityTypes);
+function iats_civicrm_entityTypes(&$entityTypes) {
+  _iats_civix_civicrm_entityTypes($entityTypes);
 }
 
 // --- Functions below this ship commented out. Uncomment as required. ---
@@ -143,7 +143,7 @@ function faps_civicrm_entityTypes(&$entityTypes) {
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_preProcess
  *
-function faps_civicrm_preProcess($formName, &$form) {
+function iats_civicrm_preProcess($formName, &$form) {
 
 } // */
 
@@ -152,8 +152,8 @@ function faps_civicrm_preProcess($formName, &$form) {
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_navigationMenu
  *
-function faps_civicrm_navigationMenu(&$menu) {
-  _faps_civix_insert_navigation_menu($menu, 'Mailings', array(
+function iats_civicrm_navigationMenu(&$menu) {
+  _iats_civix_insert_navigation_menu($menu, 'Mailings', array(
     'label' => E::ts('New subliminal message'),
     'name' => 'mailing_subliminal_message',
     'url' => 'civicrm/mailing/subliminal',
@@ -161,13 +161,13 @@ function faps_civicrm_navigationMenu(&$menu) {
     'operator' => 'OR',
     'separator' => 0,
   ));
-  _faps_civix_navigationMenu($menu);
+  _iats_civix_navigationMenu($menu);
 } // */
 
-function faps_get_setting($key = NULL) {
+function iats_get_setting($key = NULL) {
   static $settings;
   if (empty($settings)) { 
-    $settings = CRM_Core_BAO_Setting::getItem('iATS FAPS Payments Extension', 'faps_settings');
+    $settings = CRM_Core_BAO_Setting::getItem('iATS FAPS Payments Extension', 'iats_settings');
   }
   return empty($key) ?  $settings : (isset($settings[$key]) ? $settings[$key] : '');
 }
@@ -180,7 +180,7 @@ function faps_get_setting($key = NULL) {
  * subtype: the FAPS service class name subtype
  * params: an array of additional params to pass to the api call.
  */
-function faps_civicrm_processors($processors, $subtype = '', $params = array()) {
+function iats_civicrm_processors($processors, $subtype = '', $params = array()) {
   $list = array();
   $match_all = ('*' == $subtype) ? TRUE : FALSE;
   if (!$match_all) {
@@ -210,24 +210,24 @@ function faps_civicrm_processors($processors, $subtype = '', $params = array()) 
  * Hook_civicrm_buildForm.
  * Do a Drupal 7 style thing so we can write smaller functions.
  */
-function faps_civicrm_buildForm($formName, &$form) {
+function iats_civicrm_buildForm($formName, &$form) {
   // But start by grouping a few forms together for nicer code.
   switch ($formName) {
     case 'CRM_Event_Form_Participant':
     case 'CRM_Member_Form_Membership':
     case 'CRM_Contribute_Form_Contribution':
       // Override normal convention, deal with all these backend credit card contribution forms the same way.
-      $fname = 'faps_civicrm_buildForm_Contribution';
+      $fname = 'iats_civicrm_buildForm_Contribution';
       break;
 
     case 'CRM_Contribute_Form_Contribution_Main':
     case 'CRM_Event_Form_Registration_Register':
     case 'CRM_Financial_Form_Payment':
       // Override normal convention, deal with all these front-end contribution forms the same way.
-      $fname = 'faps_civicrm_buildForm_Contribution';
+      $fname = 'iats_civicrm_buildForm_Contribution';
       break;
     default:
-      $fname = 'faps_civicrm_buildForm_' . $formName;
+      $fname = 'iats_civicrm_buildForm_' . $formName;
       break;
   }
   if (function_exists($fname)) {
@@ -239,7 +239,7 @@ function faps_civicrm_buildForm($formName, &$form) {
 /**
  * Add the magic sauce to cc and ach forms if I'm using FAPS
  */
-function faps_civicrm_buildForm_Contribution(&$form) {
+function iats_civicrm_buildForm_Contribution(&$form) {
   // Skip if i don't have any processors.
   // echo '<pre>'; print_r(array_keys(get_object_vars($form))); die();
   if (empty($form->_processors)) {
@@ -251,7 +251,7 @@ function faps_civicrm_buildForm_Contribution(&$form) {
   if ($form_class == 'CRM_Financial_Form_Payment') {
     // We're on CRM_Financial_Form_Payment, we've got just one payment processor
     $id = $form->_paymentProcessor['id'];
-    $faps_processors = faps_civicrm_processors(array($id => $form->_paymentProcessor), '*');
+    $iats_processors = iats_civicrm_processors(array($id => $form->_paymentProcessor), '*');
   }
   else {
     // Handle the event and contribution page forms
@@ -266,16 +266,16 @@ function faps_civicrm_buildForm_Contribution(&$form) {
     else {
       $form_payment_processors = $form->_paymentProcessors;
     }
-    $faps_processors = faps_civicrm_processors($form_payment_processors, '*');
+    $iats_processors = iats_civicrm_processors($form_payment_processors, '*');
   }
-  if (empty($faps_processors)) {
+  if (empty($iats_processors)) {
     return;
   }
-  // print_r($faps_processors); die();
+  // print_r($iats_processors); die();
   // die('test');
   if (empty($form->_submitValues['payment_processor_id'])) {
     if (empty($form->_defaults['payment_processor_id'])) {
-      $payment_processor_ids = array_keys($faps_processors);
+      $payment_processor_ids = array_keys($iats_processors);
       $payment_processor_id = reset($payment_processor_ids);
     }
     else {
@@ -285,28 +285,28 @@ function faps_civicrm_buildForm_Contribution(&$form) {
   else {
     $payment_processor_id = $form->_submitValues['payment_processor_id'];
   }
-  $faps_processor = $faps_processors[$payment_processor_id];
-  $is_cc = ($faps_processor['payment_instrument_id'] == 1);
-  $is_test = ($faps_processor['is_test'] == 1);
+  $iats_processor = $iats_processors[$payment_processor_id];
+  $is_cc = ($iats_processor['payment_instrument_id'] == 1);
+  $is_test = ($iats_processor['is_test'] == 1);
   $has_is_recur = $form->elementExists('is_recur');
-  if (faps_get_setting('use_cryptogram')) {
-    // CRM_Core_Error::debug_var('generate cryptogram html', $faps_processors);
+  if (iats_get_setting('use_cryptogram')) {
+    // CRM_Core_Error::debug_var('generate cryptogram html', $iats_processors);
     // CRM_Core_Error::debug_var('form class', $form_class);
     // CRM_Core_Error::debug_var('form', $form);
     $credentials = array(
-      'transcenterId' => $faps_processor['password'],
-      'processorId' => $faps_processor['user_name']
+      'transcenterId' => $iats_processor['password'],
+      'processorId' => $iats_processor['user_name']
     );
-    $faps_domain = parse_url($faps_processor['url_site'], PHP_URL_HOST);
-    $cryptojs = 'https://'.$faps_domain.'/secure/PaymentHostedForm/Scripts/firstpay/firstpay.cryptogram.js';
+    $iats_domain = parse_url($iats_processor['url_site'], PHP_URL_HOST);
+    $cryptojs = 'https://'.$iats_domain.'/secure/PaymentHostedForm/Scripts/firstpay/firstpay.cryptogram.js';
     $transaction_type = $has_is_recur ? ($is_cc ? 'Auth' : 'Vault') : ($is_cc ? 'Sale' : 'AchDebit');
-    $iframe_src = 'https://'.$faps_domain. '/secure/PaymentHostedForm/v3/' .($is_cc ? 'CreditCard' : 'Ach');
+    $iframe_src = 'https://'.$iats_domain. '/secure/PaymentHostedForm/v3/' .($is_cc ? 'CreditCard' : 'Ach');
     $iframe_style = 'width: 100%;'; // height: 100%;';
     $markup = sprintf("<iframe id=\"firstpay-iframe\" src=\"%s\" style=\"%s\" data-transcenter-id=\"%s\" data-processor-id=\"%s\" data-transaction-type=\"%s\" data-manual-submit=\"false\"></iframe>\n", $iframe_src, $iframe_style,$credentials['transcenterId'], $credentials['processorId'], $transaction_type);
     // $markup = "<iframe id=\"firstpay-iframe\" src=\"%s\" style=\"width: 100%; height: 100%\" data-transcenter-id=\"%s\" data-processor-id=\"%s\" data-transaction-type=\"%s\" data-manual-submit=\"false\"></iframe>\n";
     // print_r('<pre>'.$markup.'</pre>'); die();
     CRM_Core_Resources::singleton()->addScriptUrl($cryptojs);
-    // $markup = print_r($faps_processors, TRUE);
+    // $markup = print_r($iats_processors, TRUE);
     CRM_Core_Resources::singleton()->addScriptFile('com.iatspayments.faps', 'js/crypto.js', 10);
     CRM_Core_Resources::singleton()->addStyleFile('com.iatspayments.faps', 'css/crypto.css', 10);
     CRM_Core_Region::instance('page-body')->add(array(

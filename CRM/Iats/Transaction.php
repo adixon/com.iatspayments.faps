@@ -10,9 +10,9 @@
  **/
 
 /**
- * Class CRM_Faps_Transaction
+ * Class CRM_Iats_Transaction
  */
-class CRM_Faps_Transaction {
+class CRM_Iats_Transaction {
 
   /**
    * Generate a safe, valid and unique vault key based on an email address.
@@ -276,7 +276,7 @@ class CRM_Faps_Transaction {
         break;
     }
     $service_params = array('action' => $action);
-    $faps = new CRM_Faps_Request($service_params);
+    $faps = new CRM_Iats_FapsRequest($service_params);
     // Build the request array.
     // CRM_Core_Error::debug_var('options', $options);
     list($vaultKey,$vaultId) = explode(':', $options['vault'], 2);

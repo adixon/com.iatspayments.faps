@@ -1,17 +1,17 @@
 <?xml version="1.0"?>
-<extension key="com.iatspayments.faps" type="module">
-  <file>faps</file>
-  <name>First American Payment Systems</name>
-  <description>Payment processors for First American Payment Systems interface, for iATS Payments.</description>
+<extension key="com.iatspayments.civicrm" type="module">
+  <file>iats</file>
+  <name>iATS Payments CiviCRM</name>
+  <description>Payment processor extension for iATS Payments.</description>
   <license>AGPL-3.0</license>
   <maintainer>
     <author>Alan Dixon</author>
     <email>iats@blackflysolutions.ca</email>
   </maintainer>
   <urls>
-    <url desc="Main Extension Page">https://github.com/adixon/com.iatspayments.faps</url>
-    <url desc="Documentation">https://github.com/adixon/com.iatspayments.faps/wiki</url>
-    <url desc="Support">https://github.com/adixon/com.iatspayments.faps/issues</url>
+    <url desc="Main Extension Page">https://github.com/adixon/com.iatspayments.civicrm</url>
+    <url desc="Documentation">https://github.com/adixon/com.iatspayments.civicrm/wiki</url>
+    <url desc="Support">https://github.com/adixon/com.iatspayments.civicrm/issues</url>
     <url desc="Licensing">http://www.gnu.org/licenses/agpl-3.0.html</url>
   </urls>
   <releaseDate>2018-03-08</releaseDate>
@@ -22,6 +22,6 @@
   </compatibility>
   <comments>This is a new, undeveloped module</comments>
   <civix>
-    <namespace>CRM/Faps</namespace>
+    <namespace>CRM/Iats</namespace>
   </civix>
 </extension>

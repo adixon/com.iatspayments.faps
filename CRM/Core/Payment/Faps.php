@@ -133,7 +133,7 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
         'action' => 'GenerateTokenFromCreditCard',
         'test' => ($this->_mode == 'test' ? 1 : 0),
       );
-      $token_request = new CRM_Faps_Request($options);
+      $token_request = new CRM_Iats_FapsRequest($options);
       $request = $this->convertParams($params, $options['action']);
       $request['ipAddress'] = $ipAddress;
       // Make the request.
@@ -155,9 +155,9 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
         'action' => 'VaultCreateCCRecord',
         'test' => ($this->_mode == 'test' ? 1 : 0),
       );
-      $vault_request = new CRM_Faps_Request($options);
+      $vault_request = new CRM_Iats_FapsRequest($options);
       // auto-generate a compliant vault key  
-      $vault_key = CRM_Faps_Transaction::generateVaultKey($request['ownerEmail']);
+      $vault_key = CRM_Iats_Transaction::generateVaultKey($request['ownerEmail']);
       $request['vaultKey'] = $vault_key;
       $request['ipAddress'] = $ipAddress;
       // Make the request.
@@ -188,7 +188,7 @@ class CRM_Core_Payment_Faps extends CRM_Core_Payment {
       );
     }
     // now take the money
-    $payment_request = new CRM_Faps_Request($options);
+    $payment_request = new CRM_Iats_FapsRequest($options);
     $request = $this->convertParams($params, $options['action']);
     $request['ipAddress'] = $ipAddress;
     if ($vault_id) {

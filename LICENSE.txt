@@ -1,4 +1,4 @@
-Package: com.iatspayments.faps
+Package: com.iatspayments.civicrm
 Copyright (C) 2018, Alan Dixon <iats@blackflysolutions.ca>
 Licensed under the GNU Affero Public License 3.0 (below).
 

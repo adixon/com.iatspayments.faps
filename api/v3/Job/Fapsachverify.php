@@ -1,5 +1,5 @@
 <?php
-use CRM_Faps_ExtensionUtil as E;
+use CRM_Iats_ExtensionUtil as E;
 
 /**
  * Job.FapsACHVerify API specification (optional)

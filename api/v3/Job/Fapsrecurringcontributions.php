@@ -1,5 +1,5 @@
 <?php
-use CRM_Faps_ExtensionUtil as E;
+use CRM_Iats_ExtensionUtil as E;
 
 /**
  * Job.Fapsrecurringcontributions API specification (optional)
@@ -116,7 +116,7 @@ function civicrm_api3_job_Fapsrecurringcontributions($params) {
     $payment_processor_id = $recurringContribution['payment_processor_id'];
     $vault = $recurringContribution['processor_id'];
     // Try to get a contribution template for this contribution series - if none matches (e.g. if a donation amount has been changed), we'll just be naive about it.
-    $contribution_template = CRM_Faps_Transaction::getContributionTemplate(['contribution_recur_id' => $contribution_recur_id, 'total_amount' => $total_amount]);
+    $contribution_template = CRM_Iats_Transaction::getContributionTemplate(['contribution_recur_id' => $contribution_recur_id, 'total_amount' => $total_amount]);
     CRM_Core_Error::debug_var('Contribution Template', $contribution_template);
     // generate my invoice id like CiviCRM does
     $hash = md5(uniqid(rand(), TRUE));
@@ -234,7 +234,7 @@ function civicrm_api3_job_Fapsrecurringcontributions($params) {
     /* calculate the next collection date, based on the recieve date (note effect of catchup mode, above)  */
     $next_collection_date = date('Y-m-d H:i:s', strtotime('+'.$recurringContribution['frequency_interval'].' '.$recurringContribution['frequency_unit'], $receive_ts));
     $contribution_recur_set = array('version' => 3, 'id' => $contribution['contribution_recur_id'], 'next_sched_contribution_date' => $next_collection_date);
-    $result = CRM_Faps_Transaction::process_contribution_payment($contribution, $options, $original_contribution_id);
+    $result = CRM_Iats_Transaction::process_contribution_payment($contribution, $options, $original_contribution_id);
     if ($email_failure_report && !empty($contribution['faps_reject_code'])) {
       $failure_report_text .= "\n $result ";
     }

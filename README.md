@@ -1,1 +1,1 @@
-# com.iatspayments.faps
+# com.iatspayments.civicrm
